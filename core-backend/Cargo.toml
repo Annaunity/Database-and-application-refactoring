@@ -1,0 +1,19 @@
+[package]
+name = "core-backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+argon2 = { version = "0.5.3", features = ["std"] }
+axum = { version = "0.8.0-alpha.1", features = ["macros"] }
+base64 = "0.22.1"
+chrono = { version = "0.4.39", features = ["serde"] }
+rand = "0.8.5"
+serde = { version = "1.0.216", features = ["derive"] }
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "chrono"] }
+thiserror = "2.0.7"
+tokio = { version = "1.42.0", features = ["full"] }
+tower = { version = "0.5.2", features = ["timeout"] }
+tower-http = { version = "0.6.2", features = ["trace"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
