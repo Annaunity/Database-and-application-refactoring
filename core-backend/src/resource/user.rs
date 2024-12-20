@@ -19,6 +19,7 @@ pub fn routes() -> Router<Globals> {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct CreateUser {
     username: String,
     email: String,
@@ -82,6 +83,7 @@ async fn create_user(
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct User {
     username: String,
     email: String,

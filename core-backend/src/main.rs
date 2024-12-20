@@ -51,9 +51,12 @@ async fn main() {
         db: sqlx::Pool::connect(&database_url).await.unwrap(),
     };
 
-    let app = Router::new()
+    let api = Router::new()
         .nest("/auth", auth::routes())
-        .nest("/user", resource::user::routes())
+        .nest("/user", resource::user::routes());
+
+    let app = Router::new()
+        .nest("/api/v1", api)
         .layer(
             ServiceBuilder::new()
                 .layer(HandleErrorLayer::new(handle_timeout_error))

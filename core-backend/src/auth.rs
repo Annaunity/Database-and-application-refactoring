@@ -20,6 +20,7 @@ pub fn routes() -> Router<Globals> {
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct Credentials {
     username_or_email: String,
     password: String,
@@ -27,6 +28,7 @@ struct Credentials {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct Token {
     token: String,
     expires_at: DateTime<Utc>,

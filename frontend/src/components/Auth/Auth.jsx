@@ -18,8 +18,9 @@ import {
   Text,
   TextInput,
 } from '@mantine/core';
-import { isEmail, isNotEmpty, matchesField, useForm } from '@mantine/form';
+import { matches, isEmail, isNotEmpty, matchesField, useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
+import * as api from '../../api';
 
 export function Auth() {
   const [activeTab, setActiveTab] = useState('signIn');
@@ -28,13 +29,13 @@ export function Auth() {
   const signInForm = useForm({
     mode: 'uncontrolled',
     initialValues: {
-      email: '',
+      usernameOrEmail: '',
       password: '',
       rememberMe: false,
     },
 
     validate: {
-      email: isEmail('Invalid email'),
+      usernameOrEmail: isNotEmpty('Enter your username or email'),
       password: isNotEmpty('Enter your password'),
     },
   });
@@ -42,19 +43,73 @@ export function Auth() {
   const signUpForm = useForm({
     mode: 'uncontrolled',
     initialValues: {
+      username: '',
       email: '',
       password: '',
       confirmPassword: '',
       cutie: false,
+      favouriteAnimal: 'cat',
     },
 
     validate: {
+      username: matches(/[a-zA-Z0-9_]{4,12}/, 'Username must contain from 4 to 12 allowed characters (a-z, A-Z, 0-9, _)'),
       email: isEmail('Invalid email'),
       password: isNotEmpty('Enter a password'),
       confirmPassword: matchesField('password', 'Passwords are not the same'),
       cutie: (value) => (value ? null : 'This box must be checked'),
     },
   });
+
+  const onSignIn = async (data) => {
+    try {
+      let res = await api.auth({
+        usernameOrEmail: data.usernameOrEmail,
+        password: data.password,
+        extendSession: data.rememberMe,
+      });
+
+      window.localStorage.setItem("token", res.token);
+    } catch (e) {
+      if (e.message.includes("user not found")) {
+        signInForm.setFieldError('usernameOrEmail', 'User not found');
+      }
+
+      if (e.message.includes("invalid password")) {
+        signInForm.setFieldError('password', 'Invalid password');
+      }
+
+      console.log(e);
+    }
+  };
+
+  const onSignUp = async (data) => {
+    try {
+      await api.createUser({
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        favouriteAnimal: data.favouriteAnimal,
+      });
+
+      let res = await api.auth({
+        usernameOrEmail: data.username,
+        password: data.password,
+        extendSession: false,
+      });
+
+      window.localStorage.setItem("token", res.token);
+    } catch (e) {
+      if (e.message.includes("username") && e.message.includes("already taken")) {
+        signUpForm.setFieldError('username', 'This username is already taken');
+      }
+
+      if (e.message.includes("email") && e.message.includes("already taken")) {
+        signUpForm.setFieldError('email', 'This email is already taken');
+      }
+
+      console.log(e);
+    }
+  };
 
   return (
     <Paper pos="relative" shadow="sm" radius="md" p="xl">
@@ -67,14 +122,14 @@ export function Auth() {
         </Tabs.List>
 
         <Tabs.Panel value="signIn" mt="sm">
-          <form onSubmit={signInForm.onSubmit((values) => console.log(values))}>
+          <form onSubmit={signInForm.onSubmit(onSignIn)}>
             <Stack>
               <TextInput
                 withAsterisk
-                label="Email"
-                placeholder="your@email.com"
-                key={signInForm.key('email')}
-                {...signInForm.getInputProps('email')}
+                label="Username or email"
+                placeholder="username or your@email.com"
+                key={signInForm.key('usernameOrEmail')}
+                {...signInForm.getInputProps('usernameOrEmail')}
               />
 
               <PasswordInput
@@ -100,8 +155,16 @@ export function Auth() {
         </Tabs.Panel>
 
         <Tabs.Panel value="signUp" mt="sm">
-          <form onSubmit={signUpForm.onSubmit((values) => console.log(values))}>
+          <form onSubmit={signUpForm.onSubmit(onSignUp)}>
             <Stack>
+              <TextInput
+                withAsterisk
+                label="Username"
+                placeholder="username"
+                key={signUpForm.key('username')}
+                {...signUpForm.getInputProps('username')}
+              />
+
               <TextInput
                 withAsterisk
                 label="Email"
@@ -129,6 +192,8 @@ export function Auth() {
               <Input.Wrapper label="Favourite animal" withAsterisk>
                 <Box>
                   <SegmentedControl
+                    value={signUpForm.getValues().favouriteAnimal}
+                    onChange={v => signUpForm.setFieldValue('favouriteAnimal', v)}
                     data={[
                       {
                         value: 'cat',
@@ -171,7 +236,7 @@ export function Auth() {
 
               <Group justify="space-between" mt="md">
                 <Anchor onClick={() => setActiveTab('signIn')}>I already have an account</Anchor>
-                <Button type="submit">Sign in</Button>
+                <Button type="submit">Sign up</Button>
               </Group>
             </Stack>
           </form>
