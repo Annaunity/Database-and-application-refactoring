@@ -1,11 +1,12 @@
 use std::net::SocketAddr;
 
 use argon2::{Argon2, PasswordHash, PasswordVerifier};
-use axum::Router;
-use axum::extract::{ConnectInfo, State};
+use axum::extract::{ConnectInfo, FromRequestParts, State};
 use axum::http::HeaderMap;
-use axum::http::header::USER_AGENT;
+use axum::http::header::{AUTHORIZATION, USER_AGENT};
+use axum::http::request::Parts;
 use axum::routing::post;
+use axum::{RequestPartsExt, Router};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -45,7 +46,7 @@ async fn auth(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("Unknown");
 
-    let ip_address = addr.to_string();
+    let ip_address = addr.ip().to_canonical().to_string();
 
     let user = sqlx::query!(
         "select username, password_hash from users where username = $1 or email = $1 limit 1",
@@ -55,7 +56,7 @@ async fn auth(
     .await?;
 
     let Some(user) = user else {
-        return Err(AppError::EntityNotFound("user not found".to_string()));
+        return Err(AppError::InvalidCredentials);
     };
 
     let argon2 = Argon2::default();
@@ -65,7 +66,7 @@ async fn auth(
         .verify_password(credentials.password.as_bytes(), &password_hash)
         .is_err()
     {
-        return Err(AppError::InvalidCredentials("invalid password".to_string()));
+        return Err(AppError::InvalidCredentials);
     }
 
     let valid_for = if credentials.extend_session {
@@ -102,4 +103,61 @@ async fn auth(
         token: BASE64_STANDARD.encode(token),
         expires_at,
     }))
+}
+
+pub struct AuthUser {
+    pub username: String,
+    pub email: String,
+}
+
+impl FromRequestParts<Globals> for AuthUser {
+    type Rejection = AppError;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        globals: &Globals,
+    ) -> Result<Self, Self::Rejection> {
+        let conn_info: ConnectInfo<SocketAddr> = parts.extract().await.unwrap();
+        let ip_addr = conn_info.0.ip().to_canonical().to_string();
+
+        let Some(header) = parts.headers.get(AUTHORIZATION) else {
+            return Err(AppError::AuthHeaderMissing);
+        };
+
+        let Ok(token) = header.to_str() else {
+            return Err(AppError::InvalidAuthToken);
+        };
+
+        let Ok(token) = BASE64_STANDARD.decode(token) else {
+            return Err(AppError::InvalidAuthToken);
+        };
+
+        let query = sqlx::query!(
+            "select u.username, u.email from sessions s join users u on u.username = s.username where s.token = $1",
+            &token
+        );
+        let Some(record) = query.fetch_optional(&globals.db).await? else {
+            return Err(AppError::InvalidAuthToken);
+        };
+
+        let user_agent = parts
+            .headers
+            .get(USER_AGENT)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("Unknown");
+
+        sqlx::query!(
+            "update sessions set user_agent = $1, ip_address = $2 where token = $3",
+            user_agent,
+            ip_addr,
+            &token
+        )
+        .execute(&globals.db)
+        .await?;
+
+        Ok(AuthUser {
+            username: record.username,
+            email: record.email,
+        })
+    }
 }

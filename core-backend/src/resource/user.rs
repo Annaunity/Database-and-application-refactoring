@@ -8,6 +8,7 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use rand::rngs::OsRng;
 
+use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
 use crate::model::FavouriteAnimal;
@@ -93,6 +94,7 @@ struct User {
 async fn get_user(
     State(globals): State<Globals>,
     Path(username): Path<String>,
+    _: AuthUser,
 ) -> Result<AppJson<User>> {
     let res = sqlx::query!(
         "
