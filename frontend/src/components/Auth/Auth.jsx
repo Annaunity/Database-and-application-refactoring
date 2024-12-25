@@ -22,7 +22,7 @@ import { matches, isEmail, isNotEmpty, matchesField, useForm } from '@mantine/fo
 import { useDisclosure } from '@mantine/hooks';
 import * as api from '../../api';
 
-export function Auth() {
+export function Auth({ afterAuth }) {
   const [activeTab, setActiveTab] = useState('signIn');
   const [loadingOverlayVisible, loadingOverlay] = useDisclosure(false);
 
@@ -61,6 +61,8 @@ export function Auth() {
   });
 
   const onSignIn = async (data) => {
+    loadingOverlay.open();
+
     try {
       let res = await api.auth({
         usernameOrEmail: data.usernameOrEmail,
@@ -69,20 +71,25 @@ export function Auth() {
       });
 
       window.localStorage.setItem("token", res.token);
+      afterAuth();
     } catch (e) {
       if (e.message.includes("user not found")) {
         signInForm.setFieldError('usernameOrEmail', 'User not found');
       }
 
-      if (e.message.includes("invalid password")) {
+      if (e.message.includes("invalid credentials")) {
         signInForm.setFieldError('password', 'Invalid password');
       }
 
       console.log(e);
     }
+
+    loadingOverlay.close();
   };
 
   const onSignUp = async (data) => {
+    loadingOverlay.open();
+
     try {
       await api.createUser({
         username: data.username,
@@ -98,6 +105,7 @@ export function Auth() {
       });
 
       window.localStorage.setItem("token", res.token);
+      afterAuth();
     } catch (e) {
       if (e.message.includes("username") && e.message.includes("already taken")) {
         signUpForm.setFieldError('username', 'This username is already taken');
@@ -109,6 +117,8 @@ export function Auth() {
 
       console.log(e);
     }
+
+    loadingOverlay.close();
   };
 
   return (
