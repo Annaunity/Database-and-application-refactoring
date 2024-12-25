@@ -94,13 +94,17 @@ struct User {
 async fn get_user(
     State(globals): State<Globals>,
     Path(username): Path<String>,
-    _: AuthUser,
+    auth_user: AuthUser,
 ) -> Result<AppJson<User>> {
     let res = sqlx::query!(
         "
         select username, email, favourite_animal from users where username = $1;
         ",
-        username,
+        if username == "me" {
+            &auth_user.username
+        } else {
+            &username
+        },
     )
     .fetch_optional(&globals.db)
     .await?;

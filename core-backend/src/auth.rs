@@ -56,7 +56,7 @@ async fn auth(
     .await?;
 
     let Some(user) = user else {
-        return Err(AppError::InvalidCredentials);
+        return Err(AppError::EntityNotFound("user not found".to_string()));
     };
 
     let argon2 = Argon2::default();
