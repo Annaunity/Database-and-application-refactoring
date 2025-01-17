@@ -1,0 +1,13 @@
+[package]
+name = "api-tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = "0.8.1"
+axum-test = "17.1.0"
+core-backend = { version = "0.1.0", path = ".." }
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "chrono"] }
+
+[lib]
+path = "lib.rs"

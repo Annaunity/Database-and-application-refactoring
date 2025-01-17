@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "api-tests"]
+
 [package]
 name = "core-backend"
 version = "0.1.0"
