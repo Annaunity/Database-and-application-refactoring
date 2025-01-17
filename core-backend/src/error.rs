@@ -31,6 +31,8 @@ pub enum AppError {
     EntityExists(String),
     #[error("{0}")]
     EntityNotFound(String),
+    #[error("{0}")]
+    Unauthorized(String),
     #[error("invalid credentials")]
     InvalidCredentials,
     #[error("auth header missing")]
@@ -78,6 +80,7 @@ impl IntoResponse for AppError {
             AppError::InvalidData(_) => StatusCode::BAD_REQUEST,
             AppError::EntityExists(_) => StatusCode::CONFLICT,
             AppError::EntityNotFound(_) => StatusCode::NOT_FOUND,
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::InvalidCredentials => StatusCode::UNAUTHORIZED,
             AppError::AuthHeaderMissing => StatusCode::UNAUTHORIZED,
             AppError::InvalidAuthToken => StatusCode::UNAUTHORIZED,

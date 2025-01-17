@@ -12,3 +12,13 @@ create table sessions (
     user_agent text not null,
     ip_address text not null
 );
+
+create table drawings (
+    id serial primary key,
+    name text not null,
+    owner text not null references users (username),
+    width integer not null check (width > 0),
+    height integer not null check (height > 0),
+    image_id text not null,
+    thumbnail_image_id text not null
+);

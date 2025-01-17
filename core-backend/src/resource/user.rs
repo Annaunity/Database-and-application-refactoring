@@ -11,21 +11,12 @@ use rand::rngs::OsRng;
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
-use crate::model::FavouriteAnimal;
+use crate::model::{CreateUser, FavouriteAnimal, User};
 
 pub fn routes() -> Router<Globals> {
     Router::new()
         .route("/", post(create_user))
         .route("/{username}", get(get_user))
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CreateUser {
-    username: String,
-    email: String,
-    password: String,
-    favourite_animal: FavouriteAnimal,
 }
 
 async fn create_user(
@@ -81,14 +72,6 @@ async fn create_user(
     res?;
 
     Ok(StatusCode::CREATED)
-}
-
-#[derive(Debug, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct User {
-    username: String,
-    email: String,
-    favourite_animal: FavouriteAnimal,
 }
 
 async fn get_user(

@@ -1,7 +1,25 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Credentials {
+    pub username_or_email: String,
+    pub password: String,
+    pub extend_session: bool,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Token {
+    pub token: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FavouriteAnimal {
     Cat,
@@ -41,3 +59,20 @@ impl FromStr for FavouriteAnimal {
 #[derive(Debug, thiserror::Error)]
 #[error("invalid favourite animal: {0:?}")]
 pub struct InvalidFavouriteAnimal(pub String);
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateUser {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+    pub favourite_animal: FavouriteAnimal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct User {
+    pub username: String,
+    pub email: String,
+    pub favourite_animal: FavouriteAnimal,
+}

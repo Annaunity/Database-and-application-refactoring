@@ -9,30 +9,16 @@ use axum::routing::post;
 use axum::{RequestPartsExt, Router};
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{TimeDelta, Utc};
 use rand::RngCore;
 use rand::rngs::OsRng;
 
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
+use crate::model::{Credentials, Token};
 
 pub fn routes() -> Router<Globals> {
     Router::new().route("/", post(auth))
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Credentials {
-    username_or_email: String,
-    password: String,
-    extend_session: bool,
-}
-
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct Token {
-    token: String,
-    expires_at: DateTime<Utc>,
 }
 
 async fn auth(
@@ -105,6 +91,7 @@ async fn auth(
     }))
 }
 
+#[derive(Debug)]
 pub struct AuthUser {
     pub username: String,
     pub email: String,
