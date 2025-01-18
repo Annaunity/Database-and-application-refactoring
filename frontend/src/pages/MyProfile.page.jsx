@@ -8,7 +8,7 @@ export function MyProfilePage() {
         padding="md">
       <Header/>
       <AppShell.Main bg="gray.0">
-        <Container size="sm">
+        <Container size="lg">
           my profile
         </Container>
       </AppShell.Main>

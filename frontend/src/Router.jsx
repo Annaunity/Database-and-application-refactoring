@@ -9,15 +9,11 @@ const router = createBrowserRouter([
     element: <HomePage />,
   },
   {
-    path: '/my',
-    element: <Navigate to="/my/drawings" replace />
-  },
-  {
-    path: '/my/drawings',
+    path: '/drawings',
     element: <MyDrawingsPage />,
   },
   {
-    path: '/my/profile',
+    path: '/profile',
     element: <MyProfilePage />,
   },
   {

@@ -157,7 +157,8 @@ export function Auth({ afterAuth }) {
                 {...signInForm.getInputProps('rememberMe', { type: 'checkbox' })}
               />
 
-              <Group justify="flex-end" mt="md">
+              <Group justify="space-between" mt="md">
+                <Anchor onClick={() => setActiveTab('signUp')}>I don't have an account</Anchor>
                 <Button type="submit">Sign in</Button>
               </Group>
             </Stack>

@@ -15,7 +15,7 @@ export function HomePage() {
         try {
           let currentUser = await api.getCurrentUser();
           window.localStorage.setItem("username", currentUser.username);
-          navigate("/my");
+          navigate("/drawings");
         } catch (e) {
           console.error(e);
         }
@@ -28,7 +28,7 @@ export function HomePage() {
       <AppShell.Main bg="gray.0">
         <Welcome />
         <Container size="sm">
-          <Auth afterAuth={() => navigate("/my")}/>
+          <Auth afterAuth={() => navigate("/drawings")}/>
         </Container>
       </AppShell.Main>
     </AppShell>

@@ -1,4 +1,4 @@
-import { Text, Image, AppShell, Button, Group } from '@mantine/core';
+import { Container, Text, Image, AppShell, Button, Group } from '@mantine/core';
 import { IconFile, IconUser } from '@tabler/icons-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import logo from '/src/logo256x256.png';
@@ -6,12 +6,12 @@ import logo from '/src/logo256x256.png';
 const routes = [
   {
     icon: IconFile,
-    path: "/my/drawings",
+    path: "/drawings",
     label: "My Drawings"
   },
   {
     icon: IconUser,
-    path: "/my/profile",
+    path: "/profile",
     label: "My Profile"
   }
 ];
@@ -23,6 +23,7 @@ export default function Header() {
   return (
     <AppShell.Header bg="gray.0">
       <Group h="100%" px="md">
+        <Container size="lg" w="100%">
         <Group justify="space-between" style={{ flex: 1 }}>
           <Group gap="0.5rem">
             <Image w={32} h={32} src={logo} />
@@ -41,6 +42,7 @@ export default function Header() {
             ))}
           </Group>
         </Group>
+        </Container>
       </Group>
     </AppShell.Header>
   );

@@ -69,3 +69,11 @@ export async function getCurrentUser() {
 export async function auth(data) {
   return doPost('/auth', data);
 }
+
+export async function createDrawing(data) {
+  return doPost(`/drawing`, data);
+}
+
+export async function getOwnedDrawings() {
+  return doGet(`/drawing/owned`);
+}
