@@ -76,7 +76,8 @@ async fn get_owned_drawings(
             id, name, owner, width, height, image_id,
             thumbnail_image_id, created_at, updated_at
         from drawings
-        where owner = $1",
+        where owner = $1
+        order by updated_at desc",
         auth_user.username,
     );
 

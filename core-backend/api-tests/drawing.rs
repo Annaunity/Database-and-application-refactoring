@@ -102,7 +102,7 @@ async fn get_owned_drawing(db: PgPool) {
 
     res.assert_status_ok();
     res.assert_json(&Items {
-        items: vec![shark, miku],
+        items: vec![miku, shark], // newest first
     });
 }
 
