@@ -20,5 +20,7 @@ create table drawings (
     width integer not null check (width > 0),
     height integer not null check (height > 0),
     image_id text not null,
-    thumbnail_image_id text not null
+    thumbnail_image_id text not null,
+    created_at timestamp not null,
+    updated_at timestamp not null
 );

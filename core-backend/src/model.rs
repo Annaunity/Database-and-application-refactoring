@@ -5,6 +5,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct Items<T> {
+    pub items: Vec<T>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Credentials {
     pub username_or_email: String,
@@ -62,7 +67,7 @@ pub struct InvalidFavouriteAnimal(pub String);
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateUser {
+pub struct NewUser {
     pub username: String,
     pub email: String,
     pub password: String,
@@ -75,4 +80,24 @@ pub struct User {
     pub username: String,
     pub email: String,
     pub favourite_animal: FavouriteAnimal,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Drawing {
+    pub id: i32,
+    pub name: String,
+    pub width: i32,
+    pub height: i32,
+    pub image_id: String,
+    pub thumbnail_image_id: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct NewDrawing {
+    pub name: String,
+    pub width: i32,
+    pub height: i32,
 }

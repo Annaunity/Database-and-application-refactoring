@@ -1,10 +1,13 @@
 use axum::Router;
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::{delete, get, post};
+use chrono::Utc;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
+use crate::model::{Drawing, Items, NewDrawing};
 
 pub fn routes() -> Router<Globals> {
     Router::new()
@@ -14,30 +17,11 @@ pub fn routes() -> Router<Globals> {
         .route("/{id}", delete(delete_drawing))
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "camelCase")]
-struct Drawing {
-    id: i32,
-    name: String,
-    width: i32,
-    height: i32,
-    image_id: String,
-    thumbnail_image_id: String,
-}
-
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct NewDrawing {
-    name: String,
-    width: i32,
-    height: i32,
-}
-
 async fn create_drawing(
     State(globals): State<Globals>,
     auth_user: AuthUser,
     AppJson(new_drawing): AppJson<NewDrawing>,
-) -> Result<AppJson<Drawing>> {
+) -> Result<(StatusCode, AppJson<Drawing>)> {
     if new_drawing.name.trim().is_empty() {
         return Err(AppError::InvalidData("invalid name".to_string()));
     }
@@ -50,43 +34,49 @@ async fn create_drawing(
         return Err(AppError::InvalidData("invalid height".to_string()));
     }
 
+    let now = Utc::now();
+
     let query = sqlx::query!(
-        "insert into drawings (name, owner, width, height, image_id, thumbnail_image_id) values ($1, $2, $3, $4, $5, $6) returning id",
+        "insert into drawings (
+            name, owner, width, height, image_id,
+            thumbnail_image_id, created_at, updated_at)
+        values ($1, $2, $3, $4, $5, $6, $7, $8) returning *",
         new_drawing.name,
         auth_user.username,
         new_drawing.width,
         new_drawing.height,
         "TODO",
-        "TODO"
+        "TODO",
+        now.naive_utc(),
+        now.naive_utc(),
     );
 
     let record = query.fetch_one(&globals.db).await?;
-    let id = record.id;
 
     let drawing = Drawing {
-        id,
-        name: new_drawing.name,
-        width: new_drawing.width,
-        height: new_drawing.height,
-        image_id: "TODO".to_string(),
-        thumbnail_image_id: "TODO".to_string(),
+        id: record.id,
+        name: record.name,
+        width: record.width,
+        height: record.height,
+        image_id: record.image_id,
+        thumbnail_image_id: record.thumbnail_image_id,
+        created_at: record.created_at.and_utc(),
+        updated_at: record.updated_at.and_utc(),
     };
 
-    Ok(AppJson(drawing))
+    Ok((StatusCode::CREATED, AppJson(drawing)))
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
-struct OwnedDrawings {
-    items: Vec<Drawing>,
-}
-
-#[axum::debug_handler]
 async fn get_owned_drawings(
     State(globals): State<Globals>,
     auth_user: AuthUser,
-) -> Result<AppJson<OwnedDrawings>> {
+) -> Result<AppJson<Items<Drawing>>> {
     let query = sqlx::query!(
-        "select id, name, owner, width, height, image_id, thumbnail_image_id from drawings where owner = $1",
+        "select
+            id, name, owner, width, height, image_id,
+            thumbnail_image_id, created_at, updated_at
+        from drawings
+        where owner = $1",
         auth_user.username,
     );
 
@@ -101,22 +91,25 @@ async fn get_owned_drawings(
             height: record.height,
             image_id: record.image_id,
             thumbnail_image_id: record.thumbnail_image_id,
+            created_at: record.created_at.and_utc(),
+            updated_at: record.updated_at.and_utc(),
         })
         .collect();
 
-    let drawings = OwnedDrawings { items };
-
-    Ok(AppJson(drawings))
+    Ok(AppJson(Items { items }))
 }
 
-#[axum::debug_handler]
 async fn get_drawing(
     State(globals): State<Globals>,
     auth_user: AuthUser,
     Path(id): Path<i32>,
 ) -> Result<AppJson<Drawing>> {
     let query = sqlx::query!(
-        "select name, owner, width, height, image_id, thumbnail_image_id from drawings where id = $1",
+        "select
+            name, owner, width, height, image_id,
+            thumbnail_image_id, created_at, updated_at
+        from drawings
+        where id = $1",
         id
     );
 
@@ -139,12 +132,13 @@ async fn get_drawing(
         height: record.height,
         image_id: record.image_id,
         thumbnail_image_id: record.thumbnail_image_id,
+        created_at: record.created_at.and_utc(),
+        updated_at: record.updated_at.and_utc(),
     };
 
     Ok(AppJson(drawing))
 }
 
-#[axum::debug_handler]
 async fn delete_drawing(
     State(globals): State<Globals>,
     auth_user: AuthUser,

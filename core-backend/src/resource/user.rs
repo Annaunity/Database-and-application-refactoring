@@ -11,7 +11,7 @@ use rand::rngs::OsRng;
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
-use crate::model::{CreateUser, FavouriteAnimal, User};
+use crate::model::{FavouriteAnimal, NewUser, User};
 
 pub fn routes() -> Router<Globals> {
     Router::new()
@@ -21,7 +21,7 @@ pub fn routes() -> Router<Globals> {
 
 async fn create_user(
     State(globals): State<Globals>,
-    AppJson(user): AppJson<CreateUser>,
+    AppJson(user): AppJson<NewUser>,
 ) -> Result<StatusCode> {
     if user.username.trim().is_empty() {
         return Err(AppError::InvalidData("invalid username".to_string()));
