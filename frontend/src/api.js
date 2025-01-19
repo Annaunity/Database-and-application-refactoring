@@ -65,6 +65,10 @@ export async function getOwnedDrawings() {
   return doGet(`/drawing/owned`);
 }
 
+export async function getDrawing(id) {
+  return doGet(`/drawing/${id}`);
+}
+
 export async function getSessions() {
   return doGet(`/auth/session`);
 }

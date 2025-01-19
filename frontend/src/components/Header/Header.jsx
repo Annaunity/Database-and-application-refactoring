@@ -16,7 +16,7 @@ const routes = [
   }
 ];
 
-export default function Header({ size }) {
+export default function Header({ size, leftSide = <div></div> }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,6 +28,7 @@ export default function Header({ size }) {
           <Group gap="0.5rem">
             <Image w={32} h={32} src={logo} />
             <Text fw={600} size="xl">Drawing App</Text>
+            {leftSide}
           </Group>
           <Group ml="xl" gap="md">
             {routes.map((route, i) => (

@@ -1,11 +1,13 @@
-import { Text, Modal, Button, AppShell, Container, Card, Grid, Group } from '@mantine/core';
+import { Text, Modal, Button, AppShell, Container, Card, Grid, Group, Title } from '@mantine/core';
 import Header from "../components/Header/Header";
 import { useEffect, useState } from 'react';
 import { getOwnedDrawings } from '../api';
 import CreateDrawing from '../components/CreateDrawing';
 import { useDisclosure } from '@mantine/hooks';
+import { Link, useNavigate } from 'react-router-dom';
 
 export function MyDrawingsPage() {
+  const navigate = useNavigate();
   const [drawings, setDrawings] = useState([]);
   const [createDrawingOpened, { open: openCreateDrawing, close: closeCreateDrawing }] = useDisclosure(false);
   
@@ -38,14 +40,19 @@ export function MyDrawingsPage() {
     <AppShell
         header={{ height: 60 }}
         padding="md">
-      <Header/>
+      <Header size="md"/>
       <AppShell.Main bg="gray.0">
-        <Container size="lg">
-          <Button onClick={openCreateDrawing} fullWidth variant="default">Create a new drawing</Button>
-          <Grid mt="lg">
+        <Container size="md">
+          <Group justify='space-between'>
+            <Title order={1} mb="sm">Drawings</Title>
+            <Button onClick={openCreateDrawing} variant='outline'>Create a new drawing</Button>
+          </Group>
+        </Container>
+        <Container size="100%">
+          <Grid mt="md">
             {drawings.map((drawing, i) => (
               <Grid.Col span="auto">
-                <Card key={i} shadow="xs" padding="lg" radius="md" miw="300px" withBorder>
+                <Card key={i} shadow="xs" padding="lg" radius="md" miw="300px" maw="400px" withBorder component={Link} to={`/drawings/${drawing.id}`}>
                   <Card.Section withBorder inheritPadding py="xs">
                     <Group justify='space-between'>
                       <Text fw={500}>{drawing.name}</Text>

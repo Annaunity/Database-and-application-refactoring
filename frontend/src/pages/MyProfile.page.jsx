@@ -61,9 +61,10 @@ export function MyProfilePage() {
     <AppShell
         header={{ height: 60 }}
         padding="md">
-      <Header size="sm"/>
+      <Header size="md"/>
       <AppShell.Main bg="gray.0">
-        {user && <Container size="sm">
+        {user && <Container size="md">
+          <Title order={1} mb="sm">Profile</Title >
           <Group align='center'>
             <Card radius="md" padding="xl">
               <Card.Section>
@@ -106,7 +107,7 @@ export function MyProfilePage() {
             </Card>
           </Group>
         </Container>}
-        {sessions && <Container size="sm" mt="lg">
+        {sessions && <Container size="md" mt="lg">
           <Title order={1} mb="sm">Sessions</Title >
           {sessions.items.map((session, i) => {
             const { browser, cpu, device } = UAParser(session.userAgent);
