@@ -14,6 +14,7 @@ chrono = { version = "0.4.39", features = ["serde"] }
 rand = "0.8.5"
 serde = { version = "1.0.216", features = ["derive"] }
 serde_json = "1.0.135"
+sha2 = "0.10.8"
 sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "chrono"] }
 thiserror = "2.0.7"
 tokio = { version = "1.42.0", features = ["full"] }

@@ -21,6 +21,18 @@ pub struct Credentials {
 #[serde(rename_all = "camelCase")]
 pub struct Token {
     pub token: String,
+    pub token_id: String,
+    pub expires_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Session {
+    pub is_current: bool,
+    pub token_id: String,
+    pub user_agent: String,
+    pub ip_address: String,
+    pub last_used_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
 }
 

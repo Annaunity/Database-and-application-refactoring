@@ -39,6 +39,8 @@ pub enum AppError {
     AuthHeaderMissing,
     #[error("invalid auth token")]
     InvalidAuthToken,
+    #[error("invalid auth token id")]
+    InvalidAuthTokenId,
     #[error("invalid json")]
     JsonRejection(#[from] JsonRejection),
     #[error("database error")]

@@ -7,7 +7,9 @@ create table users (
 
 create table sessions (
     token bytea primary key,
+    token_id bytea not null unique,
     username text not null references users (username),
+    last_used_at timestamp not null,
     expires_at timestamp not null,
     user_agent text not null,
     ip_address text not null
