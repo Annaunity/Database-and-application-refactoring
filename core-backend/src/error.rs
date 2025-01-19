@@ -86,6 +86,7 @@ impl IntoResponse for AppError {
             AppError::InvalidCredentials => StatusCode::UNAUTHORIZED,
             AppError::AuthHeaderMissing => StatusCode::UNAUTHORIZED,
             AppError::InvalidAuthToken => StatusCode::UNAUTHORIZED,
+            AppError::InvalidAuthTokenId => StatusCode::UNAUTHORIZED,
             AppError::JsonRejection(error) => error.status(),
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };

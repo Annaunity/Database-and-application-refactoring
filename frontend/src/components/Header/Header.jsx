@@ -16,14 +16,14 @@ const routes = [
   }
 ];
 
-export default function Header() {
+export default function Header({ size }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
     <AppShell.Header bg="gray.0">
       <Group h="100%" px="md">
-        <Container size="lg" w="100%">
+        <Container size={size || 'lg'} w="100%">
         <Group justify="space-between" style={{ flex: 1 }}>
           <Group gap="0.5rem">
             <Image w={32} h={32} src={logo} />

@@ -85,7 +85,7 @@ async fn end_session_by_token_id(db: PgPool) {
 
     let res = server
         .delete("/api/v1/auth/session")
-        .add_query_param("token_id", token.token_id)
+        .add_query_param("tokenId", token.token_id)
         .add_header(AUTHORIZATION, &token.token)
         .await;
     res.assert_status(StatusCode::NO_CONTENT);

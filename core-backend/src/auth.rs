@@ -220,6 +220,7 @@ async fn end_current_session(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct EndSessionQuery {
     token_id: String,
 }
