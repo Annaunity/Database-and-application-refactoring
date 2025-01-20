@@ -40,7 +40,7 @@ export function DrawingPage() {
     }/>
     <AppShell.Main bg="gray.0">
       {drawing && <Container size="md">
-        <Canvas width={drawing.width} height={drawing.height} />
+        <Canvas id={drawing.id} width={drawing.width} height={drawing.height} />
       </Container>}
     </AppShell.Main>
   </AppShell>

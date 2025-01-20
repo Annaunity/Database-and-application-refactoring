@@ -41,8 +41,6 @@ async fn upload_image(
     Query(query): Query<UploadQuery>,
     mut multipart: Result<Multipart, MultipartRejection>,
 ) -> Result<AppJson<UploadResult>> {
-    dbg!(&query);
-
     let multipart_field = match multipart.as_mut() {
         Ok(v) => v.next_field().await?,
         Err(_) => None,

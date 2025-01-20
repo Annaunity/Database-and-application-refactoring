@@ -1,6 +1,47 @@
 const BASE_URL = '/api/v1';
 
-async function doRequest(method, url, body) {
+async function doRequest(method, url, body, blob) {
+  const headers = new Map();
+
+  if (body) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const token = window.localStorage.getItem("token");
+  if (token != null) {
+    headers.set('Authorization', token);
+  }
+
+  let actualBody = null;
+
+  if (body) actualBody = JSON.stringify(body);
+
+  if (blob) {
+    actualBody = new FormData();
+    actualBody.append("file", blob);
+  }
+
+  const response = await fetch(BASE_URL + url, {
+    method,
+    headers,
+    body: actualBody
+  });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch (e) {}
+
+  if (!response.ok) {
+    console.error(`Error in ${url}: ${data.message}`);
+    throw new Error(data.message);
+  }
+
+  return data;
+}
+
+async function doRequestBlob(method, url, body) {
   const headers = new Map();
   headers.set('Content-Type', 'application/json');
 
@@ -18,10 +59,11 @@ async function doRequest(method, url, body) {
   let data = null;
 
   try {
-    data = await response.json();
+    data = await response.blob();
   } catch (e) {}
 
   if (!response.ok) {
+    data = JSON.parse(await data.text());
     console.error(`Error in ${url}: ${data.message}`);
     throw new Error(data.message);
   }
@@ -77,6 +119,14 @@ export async function getDrawing(id) {
   return doGet(`/drawing/${id}`);
 }
 
+export async function uploadDrawingNewVersion(id, blob) {
+  return doRequest('PUT', `/drawing/${id}/version/latest`, null, blob);
+}
+
+export async function getDrawingLatestVersion(id) {
+  return doRequestBlob('GET', `/drawing/${id}/version/latest`);
+}
+
 export async function getSessions() {
   return doGet(`/auth/session`);
 }
@@ -89,3 +139,4 @@ export async function endSession(tokenId) {
   let params = new URLSearchParams({ tokenId })
   return doDelete(`/auth/session?${params.toString()}`);
 }
+
