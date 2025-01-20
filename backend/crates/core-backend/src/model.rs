@@ -129,6 +129,14 @@ pub struct NewDrawing {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UpdateDrawing {
+    pub name: Option<String>,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DrawingVersion {
     pub id: i32,
     pub width: i32,

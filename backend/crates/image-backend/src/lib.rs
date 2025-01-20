@@ -162,4 +162,24 @@ impl ImageService {
         let res = Self::check_res(res).await?;
         Ok(res.json().await?)
     }
+
+    pub async fn resize_image_fill(
+        &self,
+        id: ImageId,
+        width: u32,
+        height: u32,
+    ) -> Result<UploadResult, ServiceError> {
+        let res = self
+            .client
+            .post(format!("{}/api/v1/image/{}/resize", self.base_url, id.0))
+            .query(&[
+                ("width", width.to_string()),
+                ("height", height.to_string()),
+                ("fill", "true".to_string()),
+            ])
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.json().await?)
+    }
 }

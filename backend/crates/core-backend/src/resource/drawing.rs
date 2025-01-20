@@ -2,7 +2,7 @@ use axum::Router;
 use axum::extract::{Multipart, Path, Query, State};
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
-use axum::routing::{delete, get, post, put};
+use axum::routing::{delete, get, patch, post, put};
 use chrono::Utc;
 use image_backend::model::ImageId;
 use serde::{Deserialize, Serialize};
@@ -10,13 +10,14 @@ use serde::{Deserialize, Serialize};
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
-use crate::model::{Drawing, DrawingVersion, Items, NewDrawing};
+use crate::model::{Drawing, DrawingVersion, Items, NewDrawing, UpdateDrawing};
 
 pub fn routes() -> Router<Globals> {
     Router::new()
         .route("/", post(create_drawing))
         .route("/owned", get(get_owned_drawings))
         .route("/{id}", get(get_drawing))
+        .route("/{id}", patch(update_drawing))
         .route("/{id}", delete(delete_drawing))
         .route("/{id}/version", get(get_versions))
         .route("/{id}/version/{version_id}", get(get_version))
@@ -151,6 +152,110 @@ async fn get_drawing(
         height: record.height,
         created_at: record.created_at.and_utc(),
         updated_at: record.updated_at.and_utc(),
+    };
+
+    Ok(AppJson(drawing))
+}
+
+async fn update_drawing(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+    AppJson(update): AppJson<UpdateDrawing>,
+) -> Result<AppJson<Drawing>> {
+    let mut tx = globals.db.begin().await?;
+
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(drawing) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != drawing.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    if let Some(new_name) = update.name {
+        sqlx::query!("update drawings set name = $1 where id = $2", new_name, id)
+            .execute(&mut *tx)
+            .await?;
+    }
+
+    if update.width.is_some_and(|v| v != drawing.width)
+        || update.height.is_some_and(|v| v != drawing.height)
+    {
+        let new_width = update.width.unwrap_or(drawing.width);
+        let new_height = update.height.unwrap_or(drawing.height);
+
+        let upload = globals
+            .image_service
+            .resize_image_fill(
+                ImageId(drawing.image_id),
+                new_width as u32,
+                new_height as u32,
+            )
+            .await?;
+
+        let thumbnail_upload = globals
+            .image_service
+            .resize_image(upload.id.clone(), 256, 256)
+            .await?;
+
+        sqlx::query!(
+            "update drawings set image_id = $1, thumbnail_image_id = $2, width = $3, height = $4, updated_at = $5 where id = $6",
+            upload.id.0,
+            thumbnail_upload.id.0,
+            new_width, new_height,
+            Utc::now().naive_utc(),
+            id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        let num_versions = sqlx::query!(
+            "select count(*) from drawing_versions where drawing_id = $1",
+            id
+        )
+        .fetch_one(&mut *tx)
+        .await?
+        .count
+        .unwrap_or(0);
+
+        sqlx::query!(
+            "insert into drawing_versions (
+                drawing_id, version_id, width, height, image_id, thumbnail_image_id, created_at)
+            values ($1, $2, $3, $4, $5, $6, $7)",
+            id,
+            (num_versions as i32) + 1,
+            new_width,
+            new_height,
+            upload.id.0,
+            thumbnail_upload.id.0,
+            Utc::now().naive_utc()
+        )
+        .execute(&mut *tx)
+        .await?;
+    }
+
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(drawing) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    tx.commit().await?;
+
+    let drawing = Drawing {
+        id,
+        name: drawing.name,
+        width: drawing.width,
+        height: drawing.height,
+        created_at: drawing.created_at.and_utc(),
+        updated_at: drawing.updated_at.and_utc(),
     };
 
     Ok(AppJson(drawing))

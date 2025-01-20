@@ -8,7 +8,7 @@ use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{delete, get, post};
 use futures_util::StreamExt as _;
-use image::imageops::FilterType;
+use image::imageops::{self, FilterType};
 use image::{ImageFormat, ImageReader, Rgb, RgbImage};
 use serde::{Deserialize, Serialize};
 use tokio::task::spawn_blocking;
@@ -193,6 +193,8 @@ async fn delete_image(
 struct ResizeQuery {
     width: u32,
     height: u32,
+    #[serde(default)]
+    fill: bool,
 }
 
 async fn resize_image(
@@ -216,9 +218,21 @@ async fn resize_image(
             .decode()
             .map_err(|_| AppError::Internal("invalid image".to_string()))?;
 
-        let resized = image
-            .resize(query.width, query.height, FilterType::Lanczos3)
-            .to_rgb8();
+        let resized = if query.fill {
+            let mut new_image = RgbImage::new(query.width, query.height);
+
+            for pixel in new_image.pixels_mut() {
+                *pixel = Rgb([255, 255, 255]);
+            }
+
+            imageops::overlay(&mut new_image, &image.to_rgb8(), 0, 0);
+
+            new_image
+        } else {
+            image
+                .resize(query.width, query.height, FilterType::Lanczos3)
+                .to_rgb8()
+        };
 
         Ok::<_, AppError>(resized)
     })
