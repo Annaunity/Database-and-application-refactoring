@@ -127,6 +127,10 @@ export async function getDrawingLatestVersion(id) {
   return doRequestBlob('GET', `/drawing/${id}/version/latest`);
 }
 
+export async function getDrawingLatestVersionThumbnail(id) {
+  return doRequestBlob('GET', `/drawing/${id}/version/latest?thumbnail=true`);
+}
+
 export async function getSessions() {
   return doGet(`/auth/session`);
 }

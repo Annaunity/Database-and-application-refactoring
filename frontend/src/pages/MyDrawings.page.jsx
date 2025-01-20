@@ -1,7 +1,7 @@
 import { Text, Modal, Button, AppShell, Container, Card, Grid, Group, Title } from '@mantine/core';
 import Header from "../components/Header/Header";
 import { useEffect, useState } from 'react';
-import { getOwnedDrawings } from '../api';
+import { getDrawingLatestVersionThumbnail, getOwnedDrawings } from '../api';
 import CreateDrawing from '../components/CreateDrawing';
 import { useDisclosure } from '@mantine/hooks';
 import { Link } from 'react-router-dom';
@@ -9,19 +9,26 @@ import { Link } from 'react-router-dom';
 export function MyDrawingsPage() {
   const [drawings, setDrawings] = useState([]);
   const [createDrawingOpened, { open: openCreateDrawing, close: closeCreateDrawing }] = useDisclosure(false);
+
+  const loadDrawings = async () => {
+    let res = (await getOwnedDrawings()).items;
+
+    for (let drawing of res) {
+      let blob = await getDrawingLatestVersionThumbnail(drawing.id);
+      drawing.src = URL.createObjectURL(blob);
+    }
+
+    setDrawings(res);
+  };
   
   useEffect(() => {
-    (async () => {
-      setDrawings((await getOwnedDrawings()).items);
-    })();
+    loadDrawings();
   }, []);
 
   const onCreated = () => {
-    (async () => {
-      setDrawings((await getOwnedDrawings()).items);
-      closeCreateDrawing();
-    })();
-  }
+    loadDrawings();
+    closeCreateDrawing();
+  };
 
   const formatDate = (date) => {
     return (new Intl.DateTimeFormat('en-US', {
@@ -57,6 +64,9 @@ export function MyDrawingsPage() {
                       <Text fw={500}>{drawing.name}</Text>
                       <Text c='gray'>{formatDate(drawing.updatedAt)}</Text>
                     </Group>
+                  </Card.Section>
+                  <Card.Section>
+                    <center><img src={drawing.src || ''}/></center>
                   </Card.Section>
                 </Card>
               </Grid.Col>
