@@ -1,10 +1,11 @@
 use axum::Router;
-use axum::extract::{Multipart, Path, State};
+use axum::extract::{Multipart, Path, Query, State};
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{delete, get, post, put};
 use chrono::Utc;
 use image_backend::model::ImageId;
+use serde::{Deserialize, Serialize};
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
@@ -54,6 +55,12 @@ async fn create_drawing(
         .await?
         .id;
 
+    let thumbnail_image_id = globals
+        .image_service
+        .resize_image(image_id.clone(), 256, 256)
+        .await?
+        .id;
+
     let query = sqlx::query!(
         "insert into drawings (
             name, owner, width, height, image_id,
@@ -64,7 +71,7 @@ async fn create_drawing(
         new_drawing.width,
         new_drawing.height,
         image_id.0,
-        "TODO",
+        thumbnail_image_id.0,
         now.naive_utc(),
         now.naive_utc(),
     );
@@ -211,9 +218,15 @@ async fn upload_new_version(
         .create_image(record.width as u32, record.height as u32, data)
         .await?;
 
+    let thumbnail_upload = globals
+        .image_service
+        .resize_image(upload.id.clone(), 256, 256)
+        .await?;
+
     sqlx::query!(
-        "update drawings set image_id = $1 where id = $2",
+        "update drawings set image_id = $1, thumbnail_image_id = $2 where id = $3",
         upload.id.0,
+        thumbnail_upload.id.0,
         id
     )
     .execute(&mut *tx)
@@ -224,10 +237,17 @@ async fn upload_new_version(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+struct GetLatestVersionQuery {
+    #[serde(default)]
+    thumbnail: bool,
+}
+
 async fn get_latest_version(
     State(globals): State<Globals>,
     auth_user: AuthUser,
     Path(id): Path<i32>,
+    Query(query_params): Query<GetLatestVersionQuery>,
 ) -> Result<(HeaderMap, Vec<u8>)> {
     let query = sqlx::query!("select * from drawings where id = $1", id);
     let Some(record) = query.fetch_optional(&globals.db).await? else {
@@ -242,10 +262,13 @@ async fn get_latest_version(
         ));
     }
 
-    let image = globals
-        .image_service
-        .get_image(ImageId(record.image_id))
-        .await?;
+    let id = if query_params.thumbnail {
+        record.thumbnail_image_id
+    } else {
+        record.image_id
+    };
+
+    let image = globals.image_service.get_image(ImageId(id)).await?;
 
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, "image/png".parse().unwrap());

@@ -234,5 +234,5 @@ async fn resize_image(
         tokio::fs::write(&path, data).await?;
     }
 
-    todo!()
+    Ok(AppJson(UploadResult { id }))
 }
