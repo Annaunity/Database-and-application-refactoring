@@ -6,7 +6,7 @@ use sqlx::PgPool;
 
 use crate::user::TestUser;
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn auth_via_username(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -32,7 +32,7 @@ async fn auth_via_username(db: PgPool) {
     res.assert_status_ok();
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn auth_via_email(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -58,7 +58,7 @@ async fn auth_via_email(db: PgPool) {
     res.assert_status_ok();
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn end_current_session(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -77,7 +77,7 @@ async fn end_current_session(db: PgPool) {
     res.assert_status_unauthorized();
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn end_session_by_token_id(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -97,7 +97,7 @@ async fn end_session_by_token_id(db: PgPool) {
     res.assert_status_unauthorized();
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn list_sessions(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();

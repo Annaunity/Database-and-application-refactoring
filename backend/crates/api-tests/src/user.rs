@@ -71,7 +71,7 @@ impl TestUser {
     }
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn create_user(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -85,7 +85,7 @@ async fn create_user(db: PgPool) {
     res.assert_text("");
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn get_user(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -99,7 +99,7 @@ async fn get_user(db: PgPool) {
     res.assert_json(&TestUser::ALEX.as_user());
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn get_user_me(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -113,7 +113,7 @@ async fn get_user_me(db: PgPool) {
     res.assert_json(&TestUser::ALEX.as_user());
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn update_email(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -138,7 +138,7 @@ async fn update_email(db: PgPool) {
     });
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn update_favourite_animal(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -163,7 +163,7 @@ async fn update_favourite_animal(db: PgPool) {
     });
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn update_password(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();

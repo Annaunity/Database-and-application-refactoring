@@ -44,7 +44,7 @@ impl TestDrawing {
     }
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn create_drawing(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -69,7 +69,7 @@ async fn create_drawing(db: PgPool) {
     assert!((drawing.updated_at - now) < TimeDelta::seconds(1));
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn get_drawing(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -86,7 +86,7 @@ async fn get_drawing(db: PgPool) {
     res.assert_json(&drawing);
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn get_owned_drawing(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
@@ -106,7 +106,7 @@ async fn get_owned_drawing(db: PgPool) {
     });
 }
 
-#[sqlx::test(migrations = "../migrations")]
+#[sqlx::test(migrations = "../../migrations")]
 async fn delete_drawing(db: PgPool) {
     let app = core_backend::build_app(db);
     let server = TestServer::new(app).unwrap();
