@@ -119,6 +119,14 @@ export async function getDrawing(id) {
   return doGet(`/drawing/${id}`);
 }
 
+export async function getDrawingVersions(id) {
+  return doGet(`/drawing/${id}/version`);
+}
+
+export async function deleteDrawing(id) {
+  return doDelete(`/drawing/${id}`);
+}
+
 export async function uploadDrawingNewVersion(id, blob) {
   return doRequest('PUT', `/drawing/${id}/version/latest`, null, blob);
 }
@@ -129,6 +137,14 @@ export async function getDrawingLatestVersion(id) {
 
 export async function getDrawingLatestVersionThumbnail(id) {
   return doRequestBlob('GET', `/drawing/${id}/version/latest?thumbnail=true`);
+}
+
+export async function getDrawingVersion(id, ver) {
+  return doRequestBlob('GET', `/drawing/${id}/version/${ver}`);
+}
+
+export async function getDrawingVersionThumbnail(id, ver) {
+  return doRequestBlob('GET', `/drawing/${id}/version/${ver}?thumbnail=true`);
 }
 
 export async function getSessions() {

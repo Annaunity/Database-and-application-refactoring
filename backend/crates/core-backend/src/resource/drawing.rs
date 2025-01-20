@@ -216,7 +216,7 @@ async fn get_versions(
     let items = rows
         .into_iter()
         .map(|record| DrawingVersion {
-            id,
+            id: record.version_id,
             width: record.width,
             height: record.height,
             created_at: record.created_at.and_utc(),
@@ -358,8 +358,7 @@ struct GetVersionQuery {
 async fn get_version(
     State(globals): State<Globals>,
     auth_user: AuthUser,
-    Path(id): Path<i32>,
-    Path(version_id): Path<i32>,
+    Path((id, version_id)): Path<(i32, i32)>,
     Query(query_params): Query<GetLatestVersionQuery>,
 ) -> Result<(HeaderMap, Vec<u8>)> {
     let query = sqlx::query!("select * from drawings where id = $1", id);

@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Text} from "@mantine/core";
+import { Paper, Button, Group, Stack, Text} from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
 import { getDrawingLatestVersion, uploadDrawingNewVersion } from "../../api";
 import { IconCircleFilled } from "@tabler/icons-react";
@@ -102,29 +102,37 @@ export default function Canvas({ id, width, height }) {
   };
 
   return <>
-    <Stack>
-      <Group justify='center' gap="xs">
-        {sizes.map((c, i) =>
-          <Button key={i}
-            onClick={() => setSize(i)}
-            variant={size == i ? 'light' : 'transparent'} leftSection={<IconCircleFilled size={c}/>}>{c}</Button>
-        )}
-      </Group>
-      <Group justify='center' gap="xs">
-        {colors.map((c, i) =>
-          <Button key={i}
-            onClick={() => setColor(i)}
-            variant={color == i ? 'light' : 'transparent'} color='dark' leftSection={<IconCircleFilled color={c[1]}/>}>{c[0]}</Button>
-        )}
-      </Group>
+    <Stack align="center">
+      <Paper p='sm' shadow='sm'>
+        <Text ta='center'>Brush size</Text>
+        <Group justify='center' gap="xs">
+          {sizes.map((c, i) =>
+            <Button key={i}
+              onClick={() => setSize(i)}
+              variant={size == i ? 'light' : 'transparent'} leftSection={<IconCircleFilled size={c}/>}>{c}</Button>
+          )}
+        </Group>
+      </Paper>
+      <Paper p='sm' shadow='sm'>
+        <Text ta='center'>Brush color</Text>
+        <Group justify='center' gap="xs">
+          {colors.map((c, i) =>
+            <Button key={i}
+              onClick={() => setColor(i)}
+              variant={color == i ? 'light' : 'transparent'} color='dark' leftSection={<IconCircleFilled color={c[1]}/>}>{c[0]}</Button>
+          )}
+        </Group>
+      </Paper>
       <Group justify='center'>
-        <canvas
-          ref={canvasRef}
-          width={width}
-          height={height}
-          onMouseDown={onMouseDown}
-          onMouseUp={onMouseUp}
-          onMouseMove={onMouseMove}/>
+        <Paper shadow='sm'>
+          <canvas
+            ref={canvasRef}
+            width={width}
+            height={height}
+            onMouseDown={onMouseDown}
+            onMouseUp={onMouseUp}
+            onMouseMove={onMouseMove}/>
+        </Paper>
       </Group>
       <Group justify="center">
         <Button onClick={save}>Save</Button>
