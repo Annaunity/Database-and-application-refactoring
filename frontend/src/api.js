@@ -131,6 +131,14 @@ export async function updateDrawing(id, data) {
   return doPatch(`/drawing/${id}`, data);
 }
 
+export async function blurDrawing(id) {
+  return doPost(`/drawing/${id}/operation/blur`);
+}
+
+export async function invertDrawing(id) {
+  return doPost(`/drawing/${id}/operation/invert`);
+}
+
 export async function uploadDrawingNewVersion(id, blob) {
   return doRequest('PUT', `/drawing/${id}/version/latest`, null, blob);
 }

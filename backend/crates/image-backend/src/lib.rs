@@ -182,4 +182,24 @@ impl ImageService {
         let res = Self::check_res(res).await?;
         Ok(res.json().await?)
     }
+
+    pub async fn blur_image(&self, id: ImageId) -> Result<UploadResult, ServiceError> {
+        let res = self
+            .client
+            .post(format!("{}/api/v1/image/{}/blur", self.base_url, id.0))
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.json().await?)
+    }
+
+    pub async fn invert_image(&self, id: ImageId) -> Result<UploadResult, ServiceError> {
+        let res = self
+            .client
+            .post(format!("{}/api/v1/image/{}/invert", self.base_url, id.0))
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.json().await?)
+    }
 }

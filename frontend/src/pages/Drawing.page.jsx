@@ -32,10 +32,10 @@ export function DrawingPage() {
 
   const updateVersions = async () => {
     let versions = (await api.getDrawingVersions(drawingId)).items;
-    for (let version of versions) {
+    await Promise.all(versions.map(async (version) => {
       let blob = await api.getDrawingVersionThumbnail(drawing.id, version.id);
       version.src = URL.createObjectURL(blob);
-    }
+    }));
     setVersions(versions);
   };
 

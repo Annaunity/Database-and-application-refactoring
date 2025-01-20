@@ -27,6 +27,8 @@ pub fn routes() -> Router<Globals> {
             post(upload_image).layer(DefaultBodyLimit::max(MAX_IMAGE_SIZE)),
         )
         .route("/{id}/resize", post(resize_image))
+        .route("/{id}/blur", post(blur_image))
+        .route("/{id}/invert", post(invert_image))
         .route("/{id}", get(get_image))
         .route("/{id}", delete(delete_image))
 }
@@ -235,6 +237,85 @@ async fn resize_image(
         };
 
         Ok::<_, AppError>(resized)
+    })
+    .await
+    .unwrap()?;
+
+    let (id, data) = encode_image(image).await?;
+
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        tokio::fs::write(&path, data).await?;
+    }
+
+    Ok(AppJson(UploadResult { id }))
+}
+
+async fn blur_image(
+    State(globals): State<Globals>,
+    Path(id): Path<ImageId>,
+) -> Result<AppJson<UploadResult>> {
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        return Err(AppError::EntityNotFound("image not found".to_string()));
+    }
+
+    let data = tokio::fs::read(&path).await?;
+
+    let image = spawn_blocking(move || {
+        let reader = ImageReader::with_format(Cursor::new(data.to_vec()), ImageFormat::Png);
+
+        let image = reader
+            .decode()
+            .map_err(|_| AppError::Internal("invalid image".to_string()))?;
+
+        let new_image = imageops::fast_blur(&image.into_rgb8(), 10.0);
+
+        Ok::<_, AppError>(new_image)
+    })
+    .await
+    .unwrap()?;
+
+    let (id, data) = encode_image(image).await?;
+
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        tokio::fs::write(&path, data).await?;
+    }
+
+    Ok(AppJson(UploadResult { id }))
+}
+
+async fn invert_image(
+    State(globals): State<Globals>,
+    Path(id): Path<ImageId>,
+) -> Result<AppJson<UploadResult>> {
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        return Err(AppError::EntityNotFound("image not found".to_string()));
+    }
+
+    let data = tokio::fs::read(&path).await?;
+
+    let image = spawn_blocking(move || {
+        let reader = ImageReader::with_format(Cursor::new(data.to_vec()), ImageFormat::Png);
+
+        let mut image = reader
+            .decode()
+            .map_err(|_| AppError::Internal("invalid image".to_string()))?
+            .into_rgb8();
+
+        imageops::invert(&mut image);
+
+        Ok::<_, AppError>(image)
     })
     .await
     .unwrap()?;

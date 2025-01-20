@@ -23,6 +23,8 @@ pub fn routes() -> Router<Globals> {
         .route("/{id}/version/{version_id}", get(get_version))
         .route("/{id}/version/latest", put(upload_new_version))
         .route("/{id}/version/latest", get(get_latest_version))
+        .route("/{id}/operation/invert", post(invert_drawing))
+        .route("/{id}/operation/blur", post(blur_drawing))
 }
 
 async fn create_drawing(
@@ -507,4 +509,142 @@ async fn get_version(
     );
 
     Ok((headers, image))
+}
+
+async fn invert_drawing(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+) -> Result<StatusCode> {
+    let mut tx = globals.db.begin().await?;
+
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let upload = globals
+        .image_service
+        .invert_image(ImageId(record.image_id))
+        .await?;
+
+    let thumbnail_upload = globals
+        .image_service
+        .resize_image(upload.id.clone(), 256, 256)
+        .await?;
+
+    sqlx::query!(
+        "update drawings set image_id = $1, thumbnail_image_id = $2, updated_at = $3 where id = $4",
+        upload.id.0,
+        thumbnail_upload.id.0,
+        Utc::now().naive_utc(),
+        id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let num_versions = sqlx::query!(
+        "select count(*) from drawing_versions where drawing_id = $1",
+        id
+    )
+    .fetch_one(&mut *tx)
+    .await?
+    .count
+    .unwrap_or(0);
+
+    sqlx::query!(
+        "insert into drawing_versions (
+            drawing_id, version_id, width, height, image_id, thumbnail_image_id, created_at)
+        values ($1, $2, $3, $4, $5, $6, $7)",
+        id,
+        (num_versions as i32) + 1,
+        record.width,
+        record.height,
+        upload.id.0,
+        thumbnail_upload.id.0,
+        Utc::now().naive_utc()
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn blur_drawing(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+) -> Result<StatusCode> {
+    let mut tx = globals.db.begin().await?;
+
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let upload = globals
+        .image_service
+        .blur_image(ImageId(record.image_id))
+        .await?;
+
+    let thumbnail_upload = globals
+        .image_service
+        .resize_image(upload.id.clone(), 256, 256)
+        .await?;
+
+    sqlx::query!(
+        "update drawings set image_id = $1, thumbnail_image_id = $2, updated_at = $3 where id = $4",
+        upload.id.0,
+        thumbnail_upload.id.0,
+        Utc::now().naive_utc(),
+        id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let num_versions = sqlx::query!(
+        "select count(*) from drawing_versions where drawing_id = $1",
+        id
+    )
+    .fetch_one(&mut *tx)
+    .await?
+    .count
+    .unwrap_or(0);
+
+    sqlx::query!(
+        "insert into drawing_versions (
+            drawing_id, version_id, width, height, image_id, thumbnail_image_id, created_at)
+        values ($1, $2, $3, $4, $5, $6, $7)",
+        id,
+        (num_versions as i32) + 1,
+        record.width,
+        record.height,
+        upload.id.0,
+        thumbnail_upload.id.0,
+        Utc::now().naive_utc()
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

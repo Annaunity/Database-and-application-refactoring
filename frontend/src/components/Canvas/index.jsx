@@ -1,6 +1,6 @@
 import { Paper, Button, Group, Stack, Text} from "@mantine/core";
 import { useEffect, useRef, useState } from "react";
-import { getDrawingLatestVersion, uploadDrawingNewVersion } from "../../api";
+import { invertDrawing, blurDrawing, getDrawingLatestVersion, uploadDrawingNewVersion } from "../../api";
 import { IconCircleFilled } from "@tabler/icons-react";
 
 export default function Canvas({ id, width, height }) {
@@ -102,11 +102,23 @@ export default function Canvas({ id, width, height }) {
   };
 
   const doBlur = () => {
-    
+    canvasRef.current.toBlob((blob) => {
+      (async () => {
+        await uploadDrawingNewVersion(id, blob);
+        await blurDrawing(id);
+        window.location.reload();
+      })();
+    }, "image/png");
   };
 
-  const doInvertColors = () => {
-    
+  const doInvert = () => {
+    canvasRef.current.toBlob((blob) => {
+      (async () => {
+        await uploadDrawingNewVersion(id, blob);
+        await invertDrawing(id);
+        window.location.reload();
+      })();
+    }, "image/png");
   };
 
   return <>
@@ -153,7 +165,7 @@ export default function Canvas({ id, width, height }) {
           <Text mt='md' ta='center'>Operations</Text>
           <Stack mt='md' align="stretch">
             <Button variant='light' onClick={doBlur}>Blur</Button>
-            <Button variant='light' onClick={doInvertColors}>Invert colors</Button>
+            <Button variant='light' onClick={doInvert}>Invert colors</Button>
           </Stack>
         </Paper>
       </Group>
