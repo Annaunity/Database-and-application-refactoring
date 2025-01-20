@@ -1,4 +1,4 @@
-import { Text, Image, AppShell, Container, Group, Card, Title, Stack, Button } from '@mantine/core';
+import { Text, Image, AppShell, Container, Group, Card, Title, Stack, Button, Modal } from '@mantine/core';
 import Header from "../components/Header/Header";
 import { useEffect, useState } from 'react';
 import { getCurrentUser, getSessions } from '../api';
@@ -9,10 +9,13 @@ import { UAParser } from 'ua-parser-js';
 import * as api from '../api.js';
 import { useNavigate } from 'react-router-dom';
 import { IconCheck, IconClock } from '@tabler/icons-react';
+import UpdateUser from '../components/UpdateUser/index.jsx';
+import { useDisclosure } from '@mantine/hooks';
 
 export function MyProfilePage() {
   const [user, setUser] = useState();
   const [sessions, setSessions] = useState();
+  const [updateUserOpened, { open: openUpdateUser, close: closeUpdateUser }] = useDisclosure(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -56,8 +59,17 @@ export function MyProfilePage() {
       }
     })()
   };
+
+  const onUpdated = (data) => {
+    setUser(data);
+    closeUpdateUser();
+  };
     
-  return (
+  return <>
+    {user && <Modal opened={updateUserOpened} onClose={closeUpdateUser} title="Update user profile">
+      <UpdateUser user={user} onUpdated={onUpdated}/>
+    </Modal>}
+
     <AppShell
         header={{ height: 60 }}
         padding="md">
@@ -101,7 +113,7 @@ export function MyProfilePage() {
                     <Text><b>Email:</b> {user.email}</Text>
                     <Text><b>Favourite animal:</b> {user.favouriteAnimal}</Text>
                   </Stack>
-                  <Button variant='outline' color='blue'>Edit</Button>
+                  <Button variant='outline' color='blue' onClick={openUpdateUser}>Edit</Button>
                 </Group>
               </Card.Section>
             </Card>
@@ -133,5 +145,5 @@ export function MyProfilePage() {
         </Container>}
       </AppShell.Main>
     </AppShell>
-  );
+  </>;
 }

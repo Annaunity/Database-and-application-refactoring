@@ -41,12 +41,20 @@ async function doDelete(url, body) {
   return doRequest('DELETE', url, body)
 }
 
+async function doPatch(url, body) {
+  return doRequest('PATCH', url, body)
+}
+
 export async function createUser(data) {
   return doPost('/user', data);
 }
 
 export async function getUser(username) {
   return doGet(`/user/${username}`);
+}
+
+export async function updateUser(username, data) {
+  return doPatch(`/user/${username}`, data);
 }
 
 export async function getCurrentUser() {

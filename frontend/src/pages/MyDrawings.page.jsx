@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react';
 import { getOwnedDrawings } from '../api';
 import CreateDrawing from '../components/CreateDrawing';
 import { useDisclosure } from '@mantine/hooks';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 export function MyDrawingsPage() {
-  const navigate = useNavigate();
   const [drawings, setDrawings] = useState([]);
   const [createDrawingOpened, { open: openCreateDrawing, close: closeCreateDrawing }] = useDisclosure(false);
   
@@ -48,7 +47,7 @@ export function MyDrawingsPage() {
             <Button onClick={openCreateDrawing} variant='outline'>Create a new drawing</Button>
           </Group>
         </Container>
-        <Container size="100%">
+        <Container size="md">
           <Grid mt="md">
             {drawings.map((drawing, i) => (
               <Grid.Col span="auto">
