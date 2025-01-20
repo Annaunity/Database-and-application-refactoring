@@ -1,0 +1,13 @@
+[package]
+name = "image-tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+image-backend = { version = "0.1.0", path = "../image-backend" }
+
+axum = "0.8.1"
+axum-test = "17.1.0"
+sqlx = { version = "0.8.2", features = ["postgres", "runtime-tokio", "chrono"] }
+tempfile = "3.15.0"
+tokio = { version = "1.43.0", features = ["macros"] }
