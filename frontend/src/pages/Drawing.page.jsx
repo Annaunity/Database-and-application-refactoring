@@ -4,6 +4,7 @@ import Header from "../components/Header/Header";
 import EditableName from "../components/EditableName";
 import { useEffect, useState } from "react";
 import * as api from "../api.js";
+import Canvas from "../components/Canvas/index.jsx";
 
 export function DrawingPage() {
   const { drawingId } = useParams();
@@ -39,7 +40,7 @@ export function DrawingPage() {
     }/>
     <AppShell.Main bg="gray.0">
       {drawing && <Container size="md">
-        {JSON.stringify(drawing)}
+        <Canvas width={drawing.width} height={drawing.height} />
       </Container>}
     </AppShell.Main>
   </AppShell>

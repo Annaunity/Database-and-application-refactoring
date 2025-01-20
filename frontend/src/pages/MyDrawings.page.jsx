@@ -50,8 +50,8 @@ export function MyDrawingsPage() {
         <Container size="md">
           <Grid mt="md">
             {drawings.map((drawing, i) => (
-              <Grid.Col span="auto">
-                <Card key={i} shadow="xs" padding="lg" radius="md" miw="300px" maw="400px" withBorder component={Link} to={`/drawings/${drawing.id}`}>
+              <Grid.Col key={i} span="auto">
+                <Card shadow="xs" padding="lg" radius="md" miw="300px" maw="400px" withBorder component={Link} to={`/drawings/${drawing.id}`}>
                   <Card.Section withBorder inheritPadding py="xs">
                     <Group justify='space-between'>
                       <Text fw={500}>{drawing.name}</Text>
