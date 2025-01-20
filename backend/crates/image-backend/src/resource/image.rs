@@ -7,8 +7,9 @@ use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{delete, get, post};
 use futures_util::StreamExt as _;
-use image::{ImageFormat, ImageReader};
+use image::{ImageFormat, ImageReader, Rgb, RgbImage};
 use serde::{Deserialize, Serialize};
+use tokio::task::spawn_blocking;
 use tokio_util::io::ReaderStream;
 
 use crate::error::{AppError, AppJson, Result};
@@ -38,41 +39,82 @@ async fn upload_image(
     Query(query): Query<UploadQuery>,
     mut multipart: Multipart,
 ) -> Result<AppJson<UploadResult>> {
-    let Some(field) = multipart.next_field().await? else {
-        return Err(AppError::InvalidData("no image uploaded".to_string()));
+    let image = match multipart.next_field().await? {
+        Some(field) => {
+            if field.content_type() != Some("image/png") {
+                return Err(AppError::InvalidData("unsupported image type".to_string()));
+            }
+
+            let bytes = field.bytes().await?;
+
+            spawn_blocking(move || {
+                let reader =
+                    ImageReader::with_format(Cursor::new(bytes.to_vec()), ImageFormat::Png);
+
+                let image = reader
+                    .decode()
+                    .map_err(|_| AppError::InvalidData("invalid image".to_string()))?;
+
+                if let Some(width) = query.width {
+                    if width != image.width() {
+                        return Err(AppError::InvalidData("invalid width".to_string()));
+                    }
+                }
+
+                if let Some(height) = query.height {
+                    if height != image.height() {
+                        return Err(AppError::InvalidData("invalid height".to_string()));
+                    }
+                }
+
+                Ok(image.into_rgb8())
+            })
+            .await
+            .unwrap()?
+        }
+        _ => {
+            let Some(width) = query.width else {
+                return Err(AppError::InvalidData(
+                    "width is required without body".to_string(),
+                ));
+            };
+
+            let Some(height) = query.height else {
+                return Err(AppError::InvalidData(
+                    "height is required without body".to_string(),
+                ));
+            };
+
+            spawn_blocking(move || {
+                let mut image = RgbImage::new(width, height);
+                for pixel in image.pixels_mut() {
+                    *pixel = Rgb([255, 255, 255]);
+                }
+                image
+            })
+            .await
+            .unwrap()
+        }
     };
 
-    if field.content_type() != Some("image/png") {
-        return Err(AppError::InvalidData("unsupported image type".to_string()));
-    }
+    let (hash, bytes) = spawn_blocking(move || {
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(b"v0");
+        hasher.update(&image.width().to_le_bytes());
+        hasher.update(&image.height().to_le_bytes());
+        hasher.update(&image.as_raw());
+        hasher.finalize();
+        let hash = hasher.finalize();
 
-    let bytes = field.bytes().await?.to_vec();
-    let reader = ImageReader::with_format(Cursor::new(bytes), ImageFormat::Png);
+        let mut bytes: Vec<u8> = Vec::new();
+        image
+            .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+            .map_err(|_| AppError::Internal("failed to encode image".to_string()))?;
 
-    let image = reader
-        .decode()
-        .map_err(|_| AppError::InvalidData("invalid image".to_string()))?;
-
-    let image = image.into_rgb8();
-
-    if let Some(width) = query.width {
-        if width != image.width() {
-            return Err(AppError::InvalidData("invalid width".to_string()));
-        }
-    }
-
-    if let Some(height) = query.height {
-        if height != image.height() {
-            return Err(AppError::InvalidData("invalid height".to_string()));
-        }
-    }
-
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(b"v0");
-    hasher.update(&image.width().to_le_bytes());
-    hasher.update(&image.height().to_le_bytes());
-    hasher.update(&image.as_raw());
-    let hash = hasher.finalize();
+        Ok::<_, AppError>((hash, bytes))
+    })
+    .await
+    .unwrap()?;
 
     let id = ImageId(format!("0{}", hash.to_hex()));
 
@@ -82,11 +124,6 @@ async fn upload_image(
     if tokio::fs::try_exists(&path).await? {
         return Err(AppError::EntityExists("image exists".to_string()));
     }
-
-    let mut bytes: Vec<u8> = Vec::new();
-    image
-        .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
-        .map_err(|_| AppError::Internal("failed to encode image".to_string()))?;
 
     tokio::fs::write(&path, bytes).await?;
 
