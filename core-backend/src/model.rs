@@ -94,6 +94,21 @@ pub struct User {
     pub favourite_animal: FavouriteAnimal,
 }
 
+#[derive(Default, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateUser {
+    pub email: Option<String>,
+    pub favourite_animal: Option<FavouriteAnimal>,
+    pub update_password: Option<UpdatePassword>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePassword {
+    pub old_password: String,
+    pub new_password: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Drawing {

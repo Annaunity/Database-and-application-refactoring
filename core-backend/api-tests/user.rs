@@ -1,7 +1,9 @@
 use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum_test::TestServer;
-use core_backend::model::{Credentials, FavouriteAnimal, NewUser, Token, User};
+use core_backend::model::{
+    Credentials, FavouriteAnimal, NewUser, Token, UpdatePassword, UpdateUser, User,
+};
 use sqlx::PgPool;
 
 pub struct TestUser {
@@ -109,4 +111,90 @@ async fn get_user_me(db: PgPool) {
         .await;
 
     res.assert_json(&TestUser::ALEX.as_user());
+}
+
+#[sqlx::test(migrations = "../migrations")]
+async fn update_email(db: PgPool) {
+    let app = core_backend::build_app(db);
+    let server = TestServer::new(app).unwrap();
+    let token = TestUser::ALEX.create_and_auth(&server).await;
+
+    let new_email = "new@email.com".to_string();
+    assert_ne!(new_email, TestUser::ALEX.email);
+
+    let res = server
+        .patch("/api/v1/user/me")
+        .add_header(AUTHORIZATION, &token.token)
+        .json(&UpdateUser {
+            email: Some(new_email.clone()),
+            ..Default::default()
+        })
+        .await;
+
+    res.assert_status_ok();
+    res.assert_json(&User {
+        email: new_email,
+        ..TestUser::ALEX.as_user()
+    });
+}
+
+#[sqlx::test(migrations = "../migrations")]
+async fn update_favourite_animal(db: PgPool) {
+    let app = core_backend::build_app(db);
+    let server = TestServer::new(app).unwrap();
+    let token = TestUser::ALEX.create_and_auth(&server).await;
+
+    let new_favourite_animal = FavouriteAnimal::Dog;
+    assert_ne!(new_favourite_animal, TestUser::ALEX.favourite_animal);
+
+    let res = server
+        .patch("/api/v1/user/me")
+        .add_header(AUTHORIZATION, &token.token)
+        .json(&UpdateUser {
+            favourite_animal: Some(new_favourite_animal),
+            ..Default::default()
+        })
+        .await;
+
+    res.assert_status_ok();
+    res.assert_json(&User {
+        favourite_animal: new_favourite_animal,
+        ..TestUser::ALEX.as_user()
+    });
+}
+
+#[sqlx::test(migrations = "../migrations")]
+async fn update_password(db: PgPool) {
+    let app = core_backend::build_app(db);
+    let server = TestServer::new(app).unwrap();
+    let token = TestUser::ALEX.create_and_auth(&server).await;
+
+    let new_password = "ne@pa55w0rD";
+    assert_ne!(new_password, TestUser::ALEX.password);
+
+    let res = server
+        .patch("/api/v1/user/me")
+        .add_header(AUTHORIZATION, &token.token)
+        .json(&UpdateUser {
+            update_password: Some(UpdatePassword {
+                old_password: TestUser::ALEX.password.to_string(),
+                new_password: new_password.to_string(),
+            }),
+            ..Default::default()
+        })
+        .await;
+
+    res.assert_status_ok();
+    res.assert_json(&TestUser::ALEX.as_user());
+
+    let res = server
+        .post("/api/v1/auth")
+        .json(&Credentials {
+            username_or_email: TestUser::ALEX.username.to_string(),
+            password: new_password.to_string(),
+            extend_session: false,
+        })
+        .await;
+
+    res.assert_status_ok();
 }
