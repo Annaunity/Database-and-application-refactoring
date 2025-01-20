@@ -116,8 +116,6 @@ pub struct Drawing {
     pub name: String,
     pub width: i32,
     pub height: i32,
-    pub image_id: String,
-    pub thumbnail_image_id: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

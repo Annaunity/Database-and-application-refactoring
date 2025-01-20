@@ -1,8 +1,10 @@
 use axum::Router;
-use axum::extract::{Path, State};
-use axum::http::StatusCode;
-use axum::routing::{delete, get, post};
+use axum::extract::{Multipart, Path, State};
+use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
+use axum::http::{HeaderMap, StatusCode};
+use axum::routing::{delete, get, post, put};
 use chrono::Utc;
+use image_backend::model::ImageId;
 
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
@@ -15,6 +17,8 @@ pub fn routes() -> Router<Globals> {
         .route("/owned", get(get_owned_drawings))
         .route("/{id}", get(get_drawing))
         .route("/{id}", delete(delete_drawing))
+        .route("/{id}/version/latest", put(upload_new_version))
+        .route("/{id}/version/latest", get(get_latest_version))
 }
 
 async fn create_drawing(
@@ -34,7 +38,21 @@ async fn create_drawing(
         return Err(AppError::InvalidData("invalid height".to_string()));
     }
 
+    if new_drawing.width > 2048 {
+        return Err(AppError::InvalidData("width too large".to_string()));
+    }
+
+    if new_drawing.height > 2048 {
+        return Err(AppError::InvalidData("height too large".to_string()));
+    }
+
     let now = Utc::now();
+
+    let image_id = globals
+        .image_service
+        .create_white_image(new_drawing.width as u32, new_drawing.height as u32)
+        .await?
+        .id;
 
     let query = sqlx::query!(
         "insert into drawings (
@@ -45,7 +63,7 @@ async fn create_drawing(
         auth_user.username,
         new_drawing.width,
         new_drawing.height,
-        "TODO",
+        image_id.0,
         "TODO",
         now.naive_utc(),
         now.naive_utc(),
@@ -58,8 +76,6 @@ async fn create_drawing(
         name: record.name,
         width: record.width,
         height: record.height,
-        image_id: record.image_id,
-        thumbnail_image_id: record.thumbnail_image_id,
         created_at: record.created_at.and_utc(),
         updated_at: record.updated_at.and_utc(),
     };
@@ -72,12 +88,7 @@ async fn get_owned_drawings(
     auth_user: AuthUser,
 ) -> Result<AppJson<Items<Drawing>>> {
     let query = sqlx::query!(
-        "select
-            id, name, owner, width, height, image_id,
-            thumbnail_image_id, created_at, updated_at
-        from drawings
-        where owner = $1
-        order by updated_at desc",
+        "select * from drawings where owner = $1 order by updated_at desc",
         auth_user.username,
     );
 
@@ -90,8 +101,6 @@ async fn get_owned_drawings(
             name: record.name,
             width: record.width,
             height: record.height,
-            image_id: record.image_id,
-            thumbnail_image_id: record.thumbnail_image_id,
             created_at: record.created_at.and_utc(),
             updated_at: record.updated_at.and_utc(),
         })
@@ -131,8 +140,6 @@ async fn get_drawing(
         name: record.name,
         width: record.width,
         height: record.height,
-        image_id: record.image_id,
-        thumbnail_image_id: record.thumbnail_image_id,
         created_at: record.created_at.and_utc(),
         updated_at: record.updated_at.and_utc(),
     };
@@ -144,7 +151,7 @@ async fn delete_drawing(
     State(globals): State<Globals>,
     auth_user: AuthUser,
     Path(id): Path<i32>,
-) -> Result<()> {
+) -> Result<StatusCode> {
     let mut tx = globals.db.begin().await?;
 
     let query = sqlx::query!("select owner from drawings where id = $1", id);
@@ -165,5 +172,87 @@ async fn delete_drawing(
 
     tx.commit().await?;
 
-    Ok(())
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn upload_new_version(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+    mut multipart: Multipart,
+) -> Result<StatusCode> {
+    let Some(field) = multipart.next_field().await? else {
+        return Err(AppError::InvalidData("no image provided".to_string()));
+    };
+
+    if field.content_type() != Some("image/png") {
+        return Err(AppError::InvalidData("unsupported image type".to_string()));
+    }
+
+    let mut tx = globals.db.begin().await?;
+
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let data = field.bytes().await?.to_vec();
+
+    let upload = globals
+        .image_service
+        .create_image(record.width as u32, record.height as u32, data)
+        .await?;
+
+    sqlx::query!(
+        "update drawings set image_id = $1 where id = $2",
+        upload.id.0,
+        id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn get_latest_version(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+) -> Result<(HeaderMap, Vec<u8>)> {
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&globals.db).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let image = globals
+        .image_service
+        .get_image(ImageId(record.image_id))
+        .await?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, "image/png".parse().unwrap());
+    headers.insert(
+        CONTENT_DISPOSITION,
+        "attachment; filename=\"drawing.png\"".parse().unwrap(),
+    );
+
+    Ok((headers, image))
 }

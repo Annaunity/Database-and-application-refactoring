@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use axum::extract::FromRequest;
+use axum::extract::multipart::MultipartError;
 use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -47,6 +48,10 @@ pub enum AppError {
     DbError(#[from] sqlx::Error),
     #[error("password hashing error")]
     PasswordHashingError(#[from] argon2::password_hash::Error),
+    #[error("external service error")]
+    ImageServiceError(#[from] image_backend::ServiceError),
+    #[error(transparent)]
+    MultipartError(#[from] MultipartError),
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -88,6 +93,7 @@ impl IntoResponse for AppError {
             AppError::InvalidAuthToken => StatusCode::UNAUTHORIZED,
             AppError::InvalidAuthTokenId => StatusCode::UNAUTHORIZED,
             AppError::JsonRejection(error) => error.status(),
+            AppError::MultipartError(error) => error.status(),
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 

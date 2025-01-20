@@ -13,6 +13,9 @@ use axum::extract::connect_info::IntoMakeServiceWithConnectInfo;
 use axum::extract::{MatchedPath, Request};
 use axum::http::StatusCode;
 use axum::{BoxError, Router};
+use model::{ImageId, UploadResult};
+use reqwest::multipart::{Form, Part};
+use reqwest::{Client, Response};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
@@ -60,4 +63,87 @@ pub fn build_app(data_path: &Path) -> IntoMakeServiceWithConnectInfo<Router, Soc
         }))
         .with_state(globals)
         .into_make_service_with_connect_info::<SocketAddr>()
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ServiceError {
+    #[error(transparent)]
+    Transport(#[from] reqwest::Error),
+    #[error("{message} ({code})")]
+    Api { code: StatusCode, message: String },
+}
+
+pub struct ImageService {
+    client: Client,
+    base_url: String,
+}
+
+impl ImageService {
+    pub fn new(base_url: String) -> Self {
+        Self {
+            client: Client::new(),
+            base_url,
+        }
+    }
+
+    async fn check_res(res: Response) -> Result<Response, ServiceError> {
+        if res.status().is_success() {
+            return Ok(res);
+        }
+
+        let code = res.status();
+
+        match res.json::<ErrorResponse>().await {
+            Ok(v) => Err(ServiceError::Api {
+                code,
+                message: v.message,
+            }),
+            Err(_) => Err(ServiceError::Api {
+                code,
+                message: code.to_string(),
+            }),
+        }
+    }
+
+    pub async fn create_white_image(
+        &self,
+        width: u32,
+        height: u32,
+    ) -> Result<UploadResult, ServiceError> {
+        let res = self
+            .client
+            .post(format!("{}/api/v1/image", self.base_url))
+            .query(&[("width", width), ("height", height)])
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.json().await?)
+    }
+
+    pub async fn create_image(
+        &self,
+        width: u32,
+        height: u32,
+        data: Vec<u8>,
+    ) -> Result<UploadResult, ServiceError> {
+        let res = self
+            .client
+            .post(format!("{}/api/v1/image", self.base_url))
+            .query(&[("width", width), ("height", height)])
+            .multipart(Form::new().part("image", Part::bytes(data).mime_str("image/png").unwrap()))
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.json().await?)
+    }
+
+    pub async fn get_image(&self, id: ImageId) -> Result<Vec<u8>, ServiceError> {
+        let res = self
+            .client
+            .get(format!("{}/api/v1/image/{}", self.base_url, id.0))
+            .send()
+            .await?;
+        let res = Self::check_res(res).await?;
+        Ok(res.bytes().await?.to_vec())
+    }
 }

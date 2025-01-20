@@ -2,6 +2,7 @@ use std::io::Cursor;
 
 use axum::Router;
 use axum::body::Body;
+use axum::extract::multipart::MultipartRejection;
 use axum::extract::{DefaultBodyLimit, Multipart, Path, Query, State};
 use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
@@ -34,12 +35,20 @@ struct UploadQuery {
     height: Option<u32>,
 }
 
+#[axum::debug_handler]
 async fn upload_image(
     State(globals): State<Globals>,
     Query(query): Query<UploadQuery>,
-    mut multipart: Multipart,
+    mut multipart: Result<Multipart, MultipartRejection>,
 ) -> Result<AppJson<UploadResult>> {
-    let image = match multipart.next_field().await? {
+    dbg!(&query);
+
+    let multipart_field = match multipart.as_mut() {
+        Ok(v) => v.next_field().await?,
+        Err(_) => None,
+    };
+
+    let image = match multipart_field {
         Some(field) => {
             if field.content_type() != Some("image/png") {
                 return Err(AppError::InvalidData("unsupported image type".to_string()));
@@ -121,11 +130,9 @@ async fn upload_image(
     let mut path = globals.data_path.join(&id.0);
     path.set_extension("png");
 
-    if tokio::fs::try_exists(&path).await? {
-        return Err(AppError::EntityExists("image exists".to_string()));
+    if !tokio::fs::try_exists(&path).await? {
+        tokio::fs::write(&path, bytes).await?;
     }
-
-    tokio::fs::write(&path, bytes).await?;
 
     Ok(AppJson(UploadResult { id }))
 }

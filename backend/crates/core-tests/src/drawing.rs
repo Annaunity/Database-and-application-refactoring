@@ -1,6 +1,7 @@
 use axum::http::StatusCode;
-use axum::http::header::AUTHORIZATION;
+use axum::http::header::{AUTHORIZATION, CONTENT_TYPE};
 use axum_test::TestServer;
+use axum_test::multipart::{MultipartForm, Part};
 use chrono::{TimeDelta, Utc};
 use core_backend::model::{Drawing, Items, NewDrawing, Token};
 use sqlx::PgPool;
@@ -26,6 +27,12 @@ impl TestDrawing {
         height: 1080,
     };
 
+    pub const KITTEN: Self = Self {
+        name: "kitteh:3",
+        width: 512, // must match size of kitten.png
+        height: 512,
+    };
+
     pub fn as_new_drawing(&self) -> NewDrawing {
         NewDrawing {
             name: self.name.to_string(),
@@ -38,7 +45,7 @@ impl TestDrawing {
         server
             .post("/api/v1/drawing")
             .add_header(AUTHORIZATION, &token.token)
-            .json(&TestDrawing::SHARK.as_new_drawing())
+            .json(&self.as_new_drawing())
             .await
             .json()
     }
@@ -119,7 +126,7 @@ async fn delete_drawing(db: PgPool) {
         .add_header(AUTHORIZATION, &token.token)
         .await;
 
-    res.assert_status(StatusCode::OK);
+    res.assert_status(StatusCode::NO_CONTENT);
 
     let res = server
         .get(&format!("/api/v1/drawing/{}", drawing.id))
@@ -127,4 +134,46 @@ async fn delete_drawing(db: PgPool) {
         .await;
 
     res.assert_status_not_found();
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn get_latest_version(db: PgPool) {
+    let app = core_backend::build_app(db);
+    let server = TestServer::new(app).unwrap();
+    let token = TestUser::ALEX.create_and_auth(&server).await;
+
+    let drawing = TestDrawing::SHARK.create(&server, &token).await;
+
+    let res = server
+        .get(&format!("/api/v1/drawing/{}/version/latest", drawing.id))
+        .add_header(AUTHORIZATION, &token.token)
+        .await;
+
+    res.assert_status(StatusCode::OK);
+    res.assert_header(CONTENT_TYPE, "image/png");
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn upload_new_version(db: PgPool) {
+    let app = core_backend::build_app(db);
+    let server = TestServer::new(app).unwrap();
+    let token = TestUser::ALEX.create_and_auth(&server).await;
+
+    let drawing = TestDrawing::KITTEN.create(&server, &token).await;
+
+    let image = std::fs::read(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../test-data/kitten.png"
+    ))
+    .unwrap();
+
+    let res = server
+        .put(&format!("/api/v1/drawing/{}/version/latest", drawing.id))
+        .add_header(AUTHORIZATION, &token.token)
+        .multipart(
+            MultipartForm::new().add_part("image", Part::bytes(image).mime_type("image/png")),
+        )
+        .await;
+
+    res.assert_status(StatusCode::NO_CONTENT);
 }

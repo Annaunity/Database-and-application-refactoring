@@ -5,6 +5,7 @@ pub mod model;
 mod resource;
 
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use axum::error_handling::HandleErrorLayer;
@@ -12,6 +13,7 @@ use axum::extract::connect_info::IntoMakeServiceWithConnectInfo;
 use axum::extract::{MatchedPath, Request};
 use axum::http::StatusCode;
 use axum::{BoxError, Router};
+use image_backend::ImageService;
 use sqlx::{Pool, Postgres};
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
@@ -34,7 +36,10 @@ async fn handle_timeout_error(err: BoxError) -> (StatusCode, AppJson<ErrorRespon
 }
 
 pub fn build_app(db: Pool<Postgres>) -> IntoMakeServiceWithConnectInfo<Router, SocketAddr> {
-    let globals = Globals { db };
+    let globals = Globals {
+        image_service: Arc::new(ImageService::new("http://127.0.0.1:2024".to_string())),
+        db,
+    };
 
     let api = Router::new()
         .nest("/auth", auth::routes())

@@ -29,8 +29,6 @@ pub enum AppError {
     #[error("{0}")]
     InvalidData(String),
     #[error("{0}")]
-    EntityExists(String),
-    #[error("{0}")]
     EntityNotFound(String),
     #[error("invalid json")]
     JsonRejection(#[from] JsonRejection),
@@ -40,7 +38,7 @@ pub enum AppError {
     IoError(#[from] std::io::Error),
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ErrorResponse {
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -72,7 +70,6 @@ impl IntoResponse for AppError {
             AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::InvalidData(_) => StatusCode::BAD_REQUEST,
             AppError::MultipartError(e) => e.status(),
-            AppError::EntityExists(_) => StatusCode::CONFLICT,
             AppError::EntityNotFound(_) => StatusCode::NOT_FOUND,
             AppError::JsonRejection(error) => error.status(),
             _ => StatusCode::INTERNAL_SERVER_ERROR,
