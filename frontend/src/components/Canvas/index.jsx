@@ -101,41 +101,61 @@ export default function Canvas({ id, width, height }) {
     }, "image/png");
   };
 
+  const doBlur = () => {
+    
+  };
+
+  const doInvertColors = () => {
+    
+  };
+
   return <>
     <Stack align="center">
-      <Paper p='sm' shadow='sm'>
-        <Text ta='center'>Brush size</Text>
-        <Group justify='center' gap="xs">
-          {sizes.map((c, i) =>
-            <Button key={i}
-              onClick={() => setSize(i)}
-              variant={size == i ? 'light' : 'transparent'} leftSection={<IconCircleFilled size={c}/>}>{c}</Button>
-          )}
-        </Group>
-      </Paper>
-      <Paper p='sm' shadow='sm'>
-        <Text ta='center'>Brush color</Text>
-        <Group justify='center' gap="xs">
-          {colors.map((c, i) =>
-            <Button key={i}
-              onClick={() => setColor(i)}
-              variant={color == i ? 'light' : 'transparent'} color='dark' leftSection={<IconCircleFilled color={c[1]}/>}>{c[0]}</Button>
-          )}
-        </Group>
-      </Paper>
-      <Group justify='center'>
-        <Paper shadow='sm'>
-          <canvas
-            ref={canvasRef}
-            width={width}
-            height={height}
-            onMouseDown={onMouseDown}
-            onMouseUp={onMouseUp}
-            onMouseMove={onMouseMove}/>
+      <Group>
+        <Paper p='sm' shadow='sm'>
+          <Text ta='center'>Brush size</Text>
+          <Group justify='center' gap="xs">
+            {sizes.map((c, i) =>
+              <Button key={i}
+                onClick={() => setSize(i)}
+                variant={size == i ? 'light' : 'transparent'} leftSection={<IconCircleFilled size={c}/>}>{c}</Button>
+            )}
+          </Group>
+        </Paper>
+        <Paper p='sm' shadow='sm'>
+          <Text ta='center'>Brush color</Text>
+          <Group justify='center' gap="xs">
+            {colors.map((c, i) =>
+              <Button key={i}
+                onClick={() => setColor(i)}
+                variant={color == i ? 'light' : 'transparent'} color='dark' leftSection={<IconCircleFilled color={c[1]}/>}>{c[0]}</Button>
+            )}
+          </Group>
         </Paper>
       </Group>
-      <Group justify="center">
-        <Button onClick={save}>Save</Button>
+      <Group align="flex-start">
+        <Group>
+          <Paper shadow='sm'>
+            <canvas
+              ref={canvasRef}
+              width={width}
+              height={height}
+              onMouseDown={onMouseDown}
+              onMouseUp={onMouseUp}
+              onMouseMove={onMouseMove}/>
+          </Paper>
+        </Group>
+        <Paper p='sm' shadow='md'>
+          <Text mt='md' ta='center'>Don't forget to save your drawing!!!</Text>
+          <Stack mt='md' align="stretch">
+            <Button onClick={save}>Save</Button>
+          </Stack>
+          <Text mt='md' ta='center'>Operations</Text>
+          <Stack mt='md' align="stretch">
+            <Button variant='light' onClick={doBlur}>Blur</Button>
+            <Button variant='light' onClick={doInvertColors}>Invert colors</Button>
+          </Stack>
+        </Paper>
       </Group>
     </Stack>
   </>
