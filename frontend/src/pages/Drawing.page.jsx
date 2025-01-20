@@ -1,4 +1,4 @@
-import { Card, Stack, Paper, Modal, Text, Group, Container, AppShell, Title, Button } from "@mantine/core";
+import { NumberInput, Card, Stack, Paper, Modal, Text, Group, Container, AppShell, Title, Button } from "@mantine/core";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header/Header";
 import EditableName from "../components/EditableName";
@@ -6,14 +6,17 @@ import { useEffect, useState } from "react";
 import * as api from "../api.js";
 import Canvas from "../components/Canvas/index.jsx";
 import { useDisclosure } from "@mantine/hooks";
-import { IconHistory, IconTrash } from "@tabler/icons-react";
+import { IconHistory, IconResize, IconTrash } from "@tabler/icons-react";
 
 export function DrawingPage() {
   const { drawingId } = useParams();
   const navigate = useNavigate();
   const [drawing, setDrawing] = useState();
   const [versions, setVersions] = useState();
+  const [newWidth, setNewWidth] = useState();
+  const [newHeight, setNewHeight] = useState();
   const [versionsOpen, { open: openVersions, close: closeVersions }] = useDisclosure(false);
+  const [resizeOpen, { open: openResize, close: closeResize }] = useDisclosure(false);
 
   useEffect(() => {
     (async () => {
@@ -38,6 +41,7 @@ export function DrawingPage() {
 
   const setDrawingName = (name) => {
     if (drawing) {
+      api.updateDrawing(drawingId, { name });
       setDrawing({ ...drawing, name });
     }
   };
@@ -63,6 +67,18 @@ export function DrawingPage() {
     window.location.reload();
   };
 
+  const prepareOpenResize = () => {
+    setNewWidth(drawing.width);
+    setNewHeight(drawing.height);
+    openResize();
+  };
+
+  const doResize = async () => {
+    await api.updateDrawing(drawingId, { width: newWidth, height:newHeight });
+    closeResize();
+    window.location.reload();
+  }
+
   return <>
     <Modal opened={versionsOpen} onClose={closeVersions} title="Versions">
       {versions && <Stack>
@@ -82,6 +98,33 @@ export function DrawingPage() {
       </Stack>}
     </Modal>
 
+    <Modal opened={resizeOpen} onClose={closeResize} title="Resize image">
+      <NumberInput
+        withAsterisk
+        label="Width"
+        suffix="px"
+        value={newWidth}
+        onChange={(e) => setNewWidth(e)}
+        allowNegative={false}
+        allowDecimal={false}
+        min={1}
+        max={1024}/>
+      <NumberInput
+        my='xs'
+        withAsterisk
+        label="Height"
+        suffix="px"
+        value={newHeight}
+        onChange={(e) => setNewHeight(e)}
+        allowNegative={false}
+        allowDecimal={false}
+        min={1}
+        max={1024}/>
+      <Group justify="flex-end">
+        <Button onClick={doResize}>Resize</Button>
+      </Group>
+    </Modal>
+
     <AppShell
       header={{ height: 60 }}
       padding="md">
@@ -95,6 +138,7 @@ export function DrawingPage() {
         {drawing && <Container size="md">
           <Group mb='md'>
             <Button variant='outline' onClick={() => {updateVersions(); openVersions();}} leftSection={<IconHistory size="1rem"/>}>Version History</Button>
+            <Button variant='outline' onClick={prepareOpenResize} color='pink' leftSection={<IconResize size="1rem"/>}>Resize drawing</Button>
             <Button variant='outline' onClick={deleteDrawing} color='red' leftSection={<IconTrash size="1rem"/>}>Delete drawing</Button>
           </Group>
           <Paper withBorder p='sm' bg='rgba(0, 0, 0, 0.05)'>
