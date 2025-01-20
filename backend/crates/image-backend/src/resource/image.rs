@@ -8,6 +8,7 @@ use axum::http::header::{CONTENT_DISPOSITION, CONTENT_TYPE};
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{delete, get, post};
 use futures_util::StreamExt as _;
+use image::imageops::FilterType;
 use image::{ImageFormat, ImageReader, Rgb, RgbImage};
 use serde::{Deserialize, Serialize};
 use tokio::task::spawn_blocking;
@@ -25,6 +26,7 @@ pub fn routes() -> Router<Globals> {
             "/",
             post(upload_image).layer(DefaultBodyLimit::max(MAX_IMAGE_SIZE)),
         )
+        .route("/{id}/resize", post(resize_image))
         .route("/{id}", get(get_image))
         .route("/{id}", delete(delete_image))
 }
@@ -104,7 +106,20 @@ async fn upload_image(
         }
     };
 
-    let (hash, bytes) = spawn_blocking(move || {
+    let (id, bytes) = encode_image(image).await?;
+
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        tokio::fs::write(&path, bytes).await?;
+    }
+
+    Ok(AppJson(UploadResult { id }))
+}
+
+async fn encode_image(image: RgbImage) -> Result<(ImageId, Vec<u8>)> {
+    spawn_blocking(move || {
         let mut hasher = blake3::Hasher::new();
         hasher.update(b"v0");
         hasher.update(&image.width().to_le_bytes());
@@ -118,21 +133,12 @@ async fn upload_image(
             .write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
             .map_err(|_| AppError::Internal("failed to encode image".to_string()))?;
 
-        Ok::<_, AppError>((hash, bytes))
+        let id = ImageId(format!("0{}", hash.to_hex()));
+
+        Ok::<_, AppError>((id, bytes))
     })
     .await
-    .unwrap()?;
-
-    let id = ImageId(format!("0{}", hash.to_hex()));
-
-    let mut path = globals.data_path.join(&id.0);
-    path.set_extension("png");
-
-    if !tokio::fs::try_exists(&path).await? {
-        tokio::fs::write(&path, bytes).await?;
-    }
-
-    Ok(AppJson(UploadResult { id }))
+    .unwrap()
 }
 
 async fn get_image(
@@ -181,4 +187,52 @@ async fn delete_image(
     tokio::fs::remove_file(&path).await?;
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+struct ResizeQuery {
+    width: u32,
+    height: u32,
+}
+
+async fn resize_image(
+    State(globals): State<Globals>,
+    Path(id): Path<ImageId>,
+    Query(query): Query<ResizeQuery>,
+) -> Result<AppJson<UploadResult>> {
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        return Err(AppError::EntityNotFound("image not found".to_string()));
+    }
+
+    let data = tokio::fs::read(&path).await?;
+
+    let image = spawn_blocking(move || {
+        let reader = ImageReader::with_format(Cursor::new(data.to_vec()), ImageFormat::Png);
+
+        let image = reader
+            .decode()
+            .map_err(|_| AppError::Internal("invalid image".to_string()))?;
+
+        let resized = image
+            .resize(query.width, query.height, FilterType::Lanczos3)
+            .to_rgb8();
+
+        Ok::<_, AppError>(resized)
+    })
+    .await
+    .unwrap()?;
+
+    let (id, data) = encode_image(image).await?;
+
+    let mut path = globals.data_path.join(&id.0);
+    path.set_extension("png");
+
+    if !tokio::fs::try_exists(&path).await? {
+        tokio::fs::write(&path, data).await?;
+    }
+
+    todo!()
 }
