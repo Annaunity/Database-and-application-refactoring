@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::auth::AuthUser;
 use crate::error::{AppError, AppJson, Result};
 use crate::globals::Globals;
-use crate::model::{Drawing, Items, NewDrawing};
+use crate::model::{Drawing, DrawingVersion, Items, NewDrawing};
 
 pub fn routes() -> Router<Globals> {
     Router::new()
@@ -18,6 +18,8 @@ pub fn routes() -> Router<Globals> {
         .route("/owned", get(get_owned_drawings))
         .route("/{id}", get(get_drawing))
         .route("/{id}", delete(delete_drawing))
+        .route("/{id}/version", get(get_versions))
+        .route("/{id}/version/{version_id}", get(get_version))
         .route("/{id}/version/latest", put(upload_new_version))
         .route("/{id}/version/latest", get(get_latest_version))
 }
@@ -182,6 +184,48 @@ async fn delete_drawing(
     Ok(StatusCode::NO_CONTENT)
 }
 
+async fn get_versions(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+) -> Result<AppJson<Items<DrawingVersion>>> {
+    let mut tx = globals.db.begin().await?;
+
+    let query = sqlx::query!("select owner from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&mut *tx).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let rows = sqlx::query!(
+        "select * from drawing_versions where drawing_id = $1 order by created_at desc",
+        id
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    let items = rows
+        .into_iter()
+        .map(|record| DrawingVersion {
+            id,
+            width: record.width,
+            height: record.height,
+            created_at: record.created_at.and_utc(),
+        })
+        .collect();
+
+    Ok(AppJson(Items { items }))
+}
+
 async fn upload_new_version(
     State(globals): State<Globals>,
     auth_user: AuthUser,
@@ -224,10 +268,35 @@ async fn upload_new_version(
         .await?;
 
     sqlx::query!(
-        "update drawings set image_id = $1, thumbnail_image_id = $2 where id = $3",
+        "update drawings set image_id = $1, thumbnail_image_id = $2, updated_at = $3 where id = $4",
         upload.id.0,
         thumbnail_upload.id.0,
+        Utc::now().naive_utc(),
         id
+    )
+    .execute(&mut *tx)
+    .await?;
+
+    let num_versions = sqlx::query!(
+        "select count(*) from drawing_versions where drawing_id = $1",
+        id
+    )
+    .fetch_one(&mut *tx)
+    .await?
+    .count
+    .unwrap_or(0);
+
+    sqlx::query!(
+        "insert into drawing_versions (
+            drawing_id, version_id, width, height, image_id, thumbnail_image_id, created_at)
+        values ($1, $2, $3, $4, $5, $6, $7)",
+        id,
+        (num_versions as i32) + 1,
+        record.width,
+        record.height,
+        upload.id.0,
+        thumbnail_upload.id.0,
+        Utc::now().naive_utc()
     )
     .execute(&mut *tx)
     .await?;
@@ -261,6 +330,62 @@ async fn get_latest_version(
             "drawing not owned by the user".to_string(),
         ));
     }
+
+    let id = if query_params.thumbnail {
+        record.thumbnail_image_id
+    } else {
+        record.image_id
+    };
+
+    let image = globals.image_service.get_image(ImageId(id)).await?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(CONTENT_TYPE, "image/png".parse().unwrap());
+    headers.insert(
+        CONTENT_DISPOSITION,
+        "attachment; filename=\"drawing.png\"".parse().unwrap(),
+    );
+
+    Ok((headers, image))
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+struct GetVersionQuery {
+    #[serde(default)]
+    thumbnail: bool,
+}
+
+async fn get_version(
+    State(globals): State<Globals>,
+    auth_user: AuthUser,
+    Path(id): Path<i32>,
+    Path(version_id): Path<i32>,
+    Query(query_params): Query<GetLatestVersionQuery>,
+) -> Result<(HeaderMap, Vec<u8>)> {
+    let query = sqlx::query!("select * from drawings where id = $1", id);
+    let Some(record) = query.fetch_optional(&globals.db).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "drawing not found".to_string(),
+        ));
+    };
+
+    if auth_user.username != record.owner {
+        return Err(crate::error::AppError::Unauthorized(
+            "drawing not owned by the user".to_string(),
+        ));
+    }
+
+    let query = sqlx::query!(
+        "select * from drawing_versions where drawing_id = $1 and version_id = $2",
+        id,
+        version_id
+    );
+
+    let Some(record) = query.fetch_optional(&globals.db).await? else {
+        return Err(crate::error::AppError::EntityNotFound(
+            "version not found".to_string(),
+        ));
+    };
 
     let id = if query_params.thumbnail {
         record.thumbnail_image_id

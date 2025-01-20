@@ -126,3 +126,12 @@ pub struct NewDrawing {
     pub width: i32,
     pub height: i32,
 }
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DrawingVersion {
+    pub id: i32,
+    pub width: i32,
+    pub height: i32,
+    pub created_at: DateTime<Utc>,
+}
